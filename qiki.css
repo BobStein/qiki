@@ -1,0 +1,92 @@
+/* CSS for Qiki */
+
+body, 
+p, 
+td, 
+li, 
+input,
+select, 
+button,
+textarea 
+h1, h2, h3, h4, h5 {
+	font-family: Arial Narrow, Verdana, Georgia, sans-serif;
+}
+
+.necorner {
+	float: right;
+}
+
+.should-qontext {
+	font-weight: bold;
+	font-family: Arial, sans-serif;
+	border: 1px solid gray;
+	padding: 0px 0px 1px 4px;
+	margin:  0px 4px 0px 0px;
+}
+
+.kare1 {
+	font-size: 18px;
+}
+
+.kare2 {
+	font-size: 15px;
+}
+
+#whatwouldlook {
+	margin-left: 10px;
+}
+
+#qomment {
+	width: 100%;
+}
+
+.sayswho {
+	color: gray;
+	font: italic 0.9em Times New Roman, Times, serif;
+}
+
+#loglink {
+	text-align: right;
+}
+#loginform,
+#signupform {
+	display: none;
+	position: absolute;
+	top: 30px;
+	right: 30px;
+	z-index: 1;
+	padding: 5px;
+	border: 1px solid black;
+	background: white;
+}
+
+#orsignup,
+#orlogin {
+	display: block;
+	float: right;
+	white-space: nowrap;
+}
+
+.User-error {
+	color: rgb(204,0,0);
+}
+
+table.commentlist {
+	border-collapse: separate;
+	border-spacing: 0px;
+	*border-collapse: expression('separate', cellSpacing = '0px');   /* http://stackoverflow.com/a/8381051/673991 */
+}
+
+table.commentlist tr td {
+	padding: 0px 10px 0px 0px;
+}
+
+table.commentlist tr td+td {
+}
+
+a.qikilink:link {
+	text-decoration: none;
+	border-width: 1px;
+	border-style: dotted;
+	padding: 0px 2px 0px 2px;
+}
