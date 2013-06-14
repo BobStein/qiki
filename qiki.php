@@ -18,5 +18,26 @@ function kontext() {  // Machine usable context, with the slash
 	return $retval;
 }
 
+function footerlogo() {
+	return 
+		"<p class='footer-logo'>"
+			."&copy;"
+			.date('Y')
+			.' '
+			.qikilogo()
+			.".info"
+		."</p>\n";
+}
+
+function qikilogo() {
+	return 
+		"<span class='qi-logo'>"
+			."Qi"
+		."</span>"
+		."<span class='ki-logo'>"
+			."Ki"
+		."</span>";
+}
+
 
 ?>

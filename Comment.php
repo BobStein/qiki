@@ -2,16 +2,17 @@
 
 // Comments for qiki
 
-require_once('User.php');
+require_once('SteinPDO.php');
+require_once('User.php');  // to get the name of who made a comment
 require_once('mysqli_read_column.php');
 require_once('mysqli_read_row.php');
 require_once('qikilink.php');
 
 class Comment {
-	static public $pdo;
+	static public /* SteinPDO */ $pdo;
 	public $row;
 	public function __construct($id) {
-		$this->row = mysqli_read_row(Comment::$pdo, "
+		$this->row = Comment::$pdo->row("
 			SELECT 
 				*, 
 				TIMESTAMPDIFF(SECOND, created, NOW()) as seconds_ago 
@@ -20,12 +21,12 @@ class Comment {
 		", array($id));
 	}
 	static public function byRecency($kontext, $n) {
-		$ids = mysqli_read_column(Comment::$pdo, "
+		$ids = Comment::$pdo->column("
 			SELECT id 
 			FROM Comments 
 			ORDER BY created DESC
 			LIMIT ?
-		", array($n));
+		", array($n));   // Note: requires setting PDO::ATTR_EMULATE_PREPARES to FALSE
 		$retval = array();
 		foreach($ids as $id) {
 			$retval[] = new Comment($id);
@@ -33,7 +34,7 @@ class Comment {
 		return $retval;
 	}
 	static public function byKontext($kontext, $orderclause = '') {
-		$ids = mysqli_read_column(Comment::$pdo, "
+		$ids = Comment::$pdo->column("
 			SELECT id 
 			FROM Comments 
 			WHERE kontext=? 

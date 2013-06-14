@@ -9,26 +9,15 @@ $FORMSUBMITURL = $_SERVER['PHP_SELF'];
 require_once('qiki.php'); 
 include("/home/visibone/security/qikisql.php");
 require_once('User.php');
+require_once('SteinPDO.php');
 require_once('Comment.php');
 require_once("parameter.php");
+
+$pdo = new SteinPDO($USER, $PASS, array('host' => $HOST, 'database' => $DATABASE));
 
 User::$PATHCONTEXT = "/";  // context is all of http://qiki.info/
 User::$COOKIEPREFIX = "qiki";
 User::$ACTIONPREFIX = $FORMSUBMITURL;
-
-try {
-	$pdo = new PDO(
-			'mysql:'
-				."host=$HOST;"
-				."dbname=$DATABASE;"
-				."charset=utf8",
-			$USER,
-			$PASS);
-	$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-	$pdo->exec("SET CHARACTER SET utf8");  // see http://stackoverflow.com/questions/4361459/php-pdo-charset-set-names#4361485
-} catch (PDOException $e) {
-	die("Error connecting to MySQL: " . $e->getMessage());
-}
 
 class UserQiki extends User {
 	public function loginForm($opts = array()) {
@@ -267,6 +256,7 @@ function htmlhead($title) {
 }
 
 function htmlfoot() {
+	echo footerlogo();
 	?>
 		</body>
 		</html>

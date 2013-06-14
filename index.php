@@ -45,7 +45,7 @@ echo "<table class='commentlist'>\n";
 foreach ($comments as $comment) {
 	echo "<tr>\n";
 	echo "<td>\n";
-	echo $comment-> htmlKontext();
+	echo $comment->htmlKontext();
 	echo "<td>\n";
 	echo $comment->htmlQomment();
 	echo "&nbsp; ";
@@ -59,5 +59,6 @@ foreach ($comments as $comment) {
 	echo "<br />\n";
 }
 echo "</table>\n";
+echo footerlogo();
 
 ?>
