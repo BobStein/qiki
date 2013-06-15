@@ -17,7 +17,7 @@ class Comment {
 				*, 
 				TIMESTAMPDIFF(SECOND, created, NOW()) as seconds_ago 
 			FROM Comments 
-			WHERE id=?
+			WHERE id = ?
 		", array($id));
 	}
 	static public function byRecency($kontext, $n) {

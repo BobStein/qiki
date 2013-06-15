@@ -11,6 +11,7 @@ include("/home/visibone/security/qikisql.php");
 require_once('User.php');
 require_once('SteinPDO.php');
 require_once('Comment.php');
+require_once('Tool.php');
 require_once("parameter.php");
 
 $pdo = new SteinPDO($USER, $PASS, array('host' => $HOST, 'database' => $DATABASE));
@@ -137,6 +138,7 @@ header("Status: 200 OK for comments");
 
 Comment::$pdo = $pdo;
 $comments = Comment::byKontext(kontext(), "ORDER BY created DESC");
+Tool::$pdo = $pdo;
 
 htmlhead(qontext() . ' - qiki');
 
@@ -221,7 +223,8 @@ foreach ($comments as $comment) {
 		echo $comment->ago();
 		echo ")";
 	echo "</span>";
-	echo "\n";
+	$tool = new Tool('tool');
+	echo $tool->img(array('title' => 'tools'));
 }
 echo "</table>\n";
 
