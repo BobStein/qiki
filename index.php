@@ -3,17 +3,12 @@ error_reporting(E_ALL);
 ini_set("display_errors", 1);
 
 require_once('qiki.php'); 
-include("/home/visibone/security/qikisql.php");
-require_once('SteinPDO.php'); 
 require_once('Comment.php'); 
 
-$pdo = new SteinPDO($USER, $PASS, array('host' => $HOST, 'database' => $DATABASE));
-Comment::$pdo = $pdo;
+htmlhead('qiki');
+necorner();
 
 ?>
-
-<title>qiki</title>
-<link type="text/css" href="/qiki.css" rel="stylesheet" />
 
 A qiki:
 
@@ -59,6 +54,7 @@ foreach ($comments as $comment) {
 	echo "<br />\n";
 }
 echo "</table>\n";
-echo footerlogo();
+
+htmlfoot();
 
 ?>

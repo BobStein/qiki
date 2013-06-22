@@ -2,108 +2,41 @@
 error_reporting(E_ALL);
 ini_set("display_errors", 1);
 
-//$DOMAIN = "qi.ki";
-$DOMAIN = "qiki.info";
-$FORMSUBMITURL = $_SERVER['PHP_SELF'];
 
 require_once('qiki.php'); 
-include("/home/visibone/security/qikisql.php");
-require_once('User.php');
-require_once('SteinPDO.php');
 require_once('Comment.php');
 require_once('Tool.php');
 require_once("parameter.php");
 
-$pdo = new SteinPDO($USER, $PASS, array('host' => $HOST, 'database' => $DATABASE));
-
-User::$PATHCONTEXT = "/";  // context is all of http://qiki.info/
-User::$COOKIEPREFIX = "qiki";
 User::$ACTIONPREFIX = $FORMSUBMITURL;
-
-class UserQiki extends User {
-	public function loginForm($opts = array()) {
-		htmlhead('qiki - log in');
-		echo $this->barebonesLoginForm($opts);
-		htmlfoot();
-		return '';
-	}
-	public function barebonesLoginForm($opts = array()) {
-		return parent::loginForm($opts);
-	}
-	public function signupForm($opts = array()) {
-		htmlhead('qiki - sign up');
-		echo $this->barebonesSignupForm($opts);
-		htmlfoot();
-		return '';
-	}
-	public function barebonesSignupForm($opts = array()) {
-		return parent::signupForm($opts);
-	}
-}
-
-$user = new UserQiki($pdo);
-$user->option('anonymous_allow', 'always');
-$user->login();
-
-// switch ($user->raw_login()) {   // good to call even if alreadyLoggedIn in case logging out
-// case 'anonymous':
-	// allow anonymous users
-	// break;
-// case 'blank':
-	// htmlhead('qiki - log in');
-	// echo $user->loginForm(array("error" => "Please enter your user username and password."));
-	// htmlfoot();
-	// exit;
-// case 'noxtable':
-// case 'denied':
-	// htmlhead('qiki - log in');
-	// echo $user->loginForm(array("error" => "Invalid username or password."));
-	// htmlfoot();
-	// exit;
-// case 'signincomplete':
-	// htmlhead('qiki - sign up');
-	// echo $user->signupForm(array("error" => "Please fill in all fields."));
-	// htmlfoot();
-	// exit;
-// case 'signmismatch':
-	// htmlhead('qiki - sign up');
-	// echo $user->signupForm(array("error" => "Passwords should match."));
-	// htmlfoot();
-	// exit;
-// case 'signedup':
-	// htmlhead('qiki - log in');
-	// echo $user->loginForm();
-	// htmlfoot();
-	// exit;
-// case 'loggedin':
-	// $user->redirectSame();
-	// exit;
-// case 'logout':
-	// $user->redirectSame();  // allow anonymous users on any page (otherwise we'd need to redirectHome()
-	// exit;
-// case 'signerror':
-// case 'error':
-	// echo $user->errorMessage();
-	// exit;
-// default:
-	// echo "Unexpectedly " . $user->status();
-	// exit;
-// case 'granted':
-	// break;
-// }
 
  
 if (isset($_REQUEST['action'])) {
 	switch($_REQUEST['action']) {
-	case 'login':
-		echo $user->loginForm();   // in case JavaScript disabled?
-		exit;
-	case 'logout':
-		$user->force_logoff();
-		$user->redirect($GLOBALS['BASE']);
-		exit;
-	case 'signup':
-		echo $user->signupForm();   // in case JavaScript disabled?
+	
+	// How can any of these ever happen?
+	// case 'login':
+		// echo $user->loginForm();   // in case JavaScript disabled?
+		// exit;
+	// case 'logout':
+		// $user->force_logoff();
+		// $user->redirect($GLOBALS['BASE']);
+		// exit;
+	// case 'signup':
+		// echo $user->signupForm();   // in case JavaScript disabled?
+		// exit;
+	case 'tool_associate':
+		parameter('toolname');
+		parameter('obj');
+		parameter('objid');
+		if ($user->alreadyLoggedIn()) {
+			$qontributor = $user->id();
+		} else {
+			$qontributor = $_SERVER['REMOTE_ADDR'];
+		}
+		$tool = new Tool($toolname);
+		$association = $tool->associate($obj, $objid, $qontributor);
+		echo "success";
 		exit;
 	case 'newcomment':
 		parameter('qomment');
@@ -113,14 +46,15 @@ if (isset($_REQUEST['action'])) {
 		} else {
 			$qontributor = $_SERVER['REMOTE_ADDR'];
 		}
-		try {
-			$stmt = $pdo->prepare("
-				INSERT INTO comments ( qomment,  qontributor,  kontext, created) 
-						      VALUES (       ?,            ?,        ?,   NOW())");
-			$stmt->execute(array     ($qomment, $qontributor, $kontext         ));
-		} catch (PDOException $e) {
-			die($e->getMessage());
-		}
+		$comment = Comment::insert($qomment, $qontributor, $kontext);
+		// try {
+			// $stmt = $pdo->prepare("
+				// INSERT INTO comments ( qomment,  qontributor,  kontext, created) 
+						      // VALUES (       ?,            ?,        ?,   NOW())");
+			// $stmt->execute(array     ($qomment, $qontributor, $kontext         ));
+		// } catch (PDOException $e) {
+			// die($e->getMessage());
+		// }
 		echo "success";
 		exit;
 	case 'newqontext':
@@ -136,34 +70,12 @@ if (isset($_REQUEST['action'])) {
 header("HTTP/1.0 200 OK for comments");
 header("Status: 200 OK for comments");
 
-Comment::$pdo = $pdo;
-$comments = Comment::byKontext(kontext(), "ORDER BY created DESC");
-Tool::$pdo = $pdo;
+$comments = Comment::byKontext(kontext(), "ORDER BY created DESC");   // TODO: LIMIT clause
 
 htmlhead(qontext() . ' - qiki');
+necorner();
 
 ?>
-	<div class="necorner">
-		<?php
-			if ($user->alreadyLoggedIn()) {
-				echo "<div id='loglink'>";
-				echo "(<a id='logoutlink' href='$FORMSUBMITURL?action=logout'>logout</a> as {$user->name()})";
-				echo "</div>\n";
-			} else {
-				echo "<div id='loglink'>";
-				echo "(<a id='loginlink' href='$FORMSUBMITURL?action=login'>login</a>)";
-				echo "</div>\n";
-			}
-		?>
-		<div id='loginform'>
-			<span id='orsignup'>(or <a href='<?php echo $FORMSUBMITURL; ?>?action=signup' title="if you don't have an account">sign up</a>)</span>
-			<?php echo $user->barebonesLoginForm(); ?>
-		</div>
-		<div id='signupform'>
-			<span id='orlogin'>(or <a href='<?php echo $FORMSUBMITURL; ?>?action=signup' title="if you already have an account">log in</a>)</span>
-			<?php echo $user->barebonesSignupForm(); ?>
-		</div>
-	</div>
 	<form class='contextform' action='<?php echo $FORMSUBMITURL; ?>' method='post'>
 		<input type='hidden' name='action' value='newqontext' />
 		<span id='whatshouldbe' class='kare1'>
@@ -209,10 +121,10 @@ htmlhead(qontext() . ' - qiki');
 		// </h4>
 	// < ? p h p
 // }
-echo "<table>\n";
+//echo "<table>\n";
 foreach ($comments as $comment) {
-	echo "<tr>";
-	echo "<td>";
+	//echo "<tr>";
+	//echo "<td>";
 	echo $comment->htmlQomment();
 	//echo "<td>";
 	echo "&nbsp; ";
@@ -222,11 +134,24 @@ foreach ($comments as $comment) {
 		echo ", ";
 		echo $comment->ago();
 		echo ")";
-	echo "</span>";
-	$tool = new Tool('tool');
-	echo $tool->img(array('title' => 'tools'));
+	echo "</span>\n";
+	$assocs = Tool::associations(get_class($comment), $comment->id());
+	if ($assocs != array()) {
+		foreach($assocs as $toolname => $value) {
+			$tool = new Tool($toolname);
+			echo $tool->img();
+			if ($value != 1.0) {
+				echo "&times;";
+				echo strval($value);
+			}
+			echo " ";
+		}
+	}
+	
+	toolexpander(get_class($comment), $comment->id());
+	echo "\t<br />\n";
 }
-echo "</table>\n";
+//echo "</table>\n";
 
 echo "<!-- \n";
 echo "\$_SERVER[]:\n"; var_export($_SERVER);
@@ -239,31 +164,18 @@ echo " -->\n";
 
 htmlfoot();
 
-
-function htmlhead($title) {
-	?>
-		<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
-		<html xmlns="http://www.w3.org/1999/xhtml">
-		<head>
-			<title><?php echo $title; ?></title>
-			<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
-			<script type="text/javascript" src="//code.jquery.com/jquery-latest.min.js"></script>
-			<script type="text/javascript" src="/qiki.js"></script>
-			<link type="text/css" href="/qiki.css" rel="stylesheet" />
-			<?php echo "\n";
-				User::js(); 
-			?>
-		</head>
-		<body>
-	<?php echo "\n";
-}
-
-function htmlfoot() {
-	echo footerlogo();
-	?>
-		</body>
-		</html>
-	<?php echo "\n";
+function toolexpander($obj, $objid) {
+	echo "\t<span class='toolcombo' data-obj='$obj' data-objid='$objid'>\n";
+		$tool = new Tool('tool');
+		echo "\t\t" . $tool->img(array('title' => 'see tools', 'class' => 'toolopen')) . "\n";
+		echo "\t\t<span class='toolbar'>\n";
+			foreach(Tool::all() as $toolEach) {
+				if ($toolEach->id() != $tool->id()) {
+					echo "\t\t\t" . $toolEach->img() . "\n";
+				}
+			}
+		echo "\t\t</span>\n";
+	echo "\t</span>\n";
 }
 
 ?>

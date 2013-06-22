@@ -8,22 +8,44 @@ require_once('mysqli_read_column.php');
 require_once('mysqli_read_row.php');
 require_once('qikilink.php');
 
-class Comment {
-	static public /* SteinPDO */ $pdo;
-	public $row;
+class Comment extends SteinTable {
+	static protected $table = "Comment";
+	// static protected /* SteinPDO */ $pdo;
+	protected $row;
 	public function __construct($id) {
-		$this->row = Comment::$pdo->row("
-			SELECT 
-				*, 
-				TIMESTAMPDIFF(SECOND, created, NOW()) as seconds_ago 
-			FROM Comments 
-			WHERE id = ?
-		", array($id));
+		try {
+			$this->row = Comment::$pdo->row("
+				SELECT 
+					*, 
+					TIMESTAMPDIFF(SECOND, created, NOW()) as seconds_ago 
+				FROM ".Comment::$table."
+				WHERE comment_id = ?
+			", array($id));
+		} catch (PDOException $e) {
+			die("Error reading comment - " . $e->getMessage());
+		}
+	}
+	// static public function pdo($newpdo = NULL) {
+		// if (!is_null($newpdo)) {
+			// Comment::$pdo = $newpdo;
+		// }
+		// return Comment::$pdo;
+	// }
+	static public function insert($qomment, $qontributor, $kontext) {
+		try {
+			$stmt = Comment::$pdo->prepare("
+				INSERT INTO ".Comment::$table." ( qomment,  qontributor,  kontext, created) 
+							             VALUES (       ?,            ?,        ?,   NOW())");
+			$stmt->execute(array                ($qomment, $qontributor, $kontext         ));
+		} catch (PDOException $e) {
+			die("Error writing comment - " . $e->getMessage());
+		}
+		return new Comment(Comment::$pdo->lastInsertId());
 	}
 	static public function byRecency($kontext, $n) {
 		$ids = Comment::$pdo->column("
-			SELECT id 
-			FROM Comments 
+			SELECT comment_id 
+			FROM ".Comment::$table."
 			ORDER BY created DESC
 			LIMIT ?
 		", array($n));   // Note: requires setting PDO::ATTR_EMULATE_PREPARES to FALSE
@@ -35,8 +57,8 @@ class Comment {
 	}
 	static public function byKontext($kontext, $orderclause = '') {
 		$ids = Comment::$pdo->column("
-			SELECT id 
-			FROM Comments 
+			SELECT comment_id 
+			FROM ".Comment::$table."
 			WHERE kontext=? 
 			$orderclause
 		", array($kontext));
@@ -60,6 +82,9 @@ class Comment {
 		} else {
 			return 'unknown';
 		}
+	}
+	public function id() {
+		return $this->row['comment_id'];
 	}
 	public function kontext() {
 		return $this->row['kontext'];
