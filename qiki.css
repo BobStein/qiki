@@ -20,6 +20,9 @@ img {
 	float: right;
 }
 
+body {
+	margin: 4px 12px 4px 4px;
+}
 
 
 /* Logo */
@@ -37,9 +40,9 @@ img {
 	padding-left: 3px;
 	padding-right: 2px;
 	border-right-width: 0px;
-	    -moz-border-radius-topleft: 7px;
-	  -khtml-border-radius-topleft: 7px;
 	-webkit-border-top-left-radius: 7px;
+	  -khtml-border-radius-topleft: 7px;
+	    -moz-border-radius-topleft: 7px;
 	        border-top-left-radius: 7px;
 	/* behavior: url(border-radius.htc);   for IE6 from http://code.google.com/p/curved-corner/ but it doesn't appear to work */
 	                                    /* see http://jonraasch.com/blog/css-rounded-corners-in-all-browsers only works for uniform, 4-corner radius */
@@ -52,14 +55,18 @@ img {
 	padding-left: 2px;
 	padding-right: 3px;
 	border-left-width: 0px;
+	-webkit-border-bottom-right-radius: 7px;
 	  -khtml-border-radius-bottomright: 7px;
 	    -moz-border-radius-bottomright: 7px;
-	-webkit-border-bottom-right-radius: 7px;
 	        border-bottom-right-radius: 7px;
 }
 .qi-logo,
 .ki-logo {
 	font: normal 13px Arial Black, Impact, sans-serif;
+}
+
+.qiki-logo:link {
+	text-decoration: none;
 }
 
 
@@ -140,18 +147,36 @@ a.qikilink:link {
 }
 
 
-/* Tools */
 
-.tool-qiki {
+/* Verbbar */
+
+.verb-qiki img {
 	vertical-align: middle;
 }
 
-.toolopen {
+.verbopen {
 	cursor: pointer;
 	margin-left: 2px;
 }
 
-.toolfade {  /*** thanks to http://stackoverflow.com/a/5640854/673991 ***/
+.verb-post {
+	display: inline-block;
+	margin: -5px 1px -5px 1px;
+	position: relative;
+	top: 5px;
+}
+.verb-postsup,
+.verb-postsub {
+	font-size: 0.6em;
+	text-align: left;
+	margin: 0px;
+}
+.verb-postsup {
+	margin-bottom: -4px;
+}
+
+.fadeUntilHover,
+.verbfade {  /*** thanks to http://stackoverflow.com/a/5640854/673991 ***/
   /* IE 8 */
   -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=50)";
 
@@ -167,8 +192,10 @@ a.qikilink:link {
   /* Good browsers */
   opacity: 0.5;
 }
-.toolfade:hover,
-.tooldarken {
+
+.fadeUntilHover:hover,
+.verbfade:hover,
+.verbdarken {
   /* IE 8 */
   -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=100)";
 
@@ -184,13 +211,64 @@ a.qikilink:link {
   /* Good browsers */
   opacity: 1.0;
 }
-.toolbar .tool-qiki {
-	margin-right: 2px;
+.verbbar .verb-qiki {
+	margin-right: 3px;
 	cursor: pointer;
 }
-.toolbar {
+.verbbar {
 	margin-left: 2px;
 	padding-left: 2px;
 	border: 1px solid;
 	border-color: silver gray black silver;
+}
+
+
+
+/* Qoolbar */
+
+.qoolbar {
+	display: block;
+	position: fixed;
+	right: 0px;
+	top: 100px;
+	border-style: solid;
+	border-width: 1px 0px 1px 1px;
+	border-color: #CCCCCC;
+	background-color: #EEEEEE;
+	padding: 3px;
+	-webkit-border-top-left-radius: 8px;
+	  -khtml-border-radius-topleft: 8px;
+	    -moz-border-radius-topleft: 8px;
+	        border-top-left-radius: 8px;
+	-webkit-border-bottom-left-radius: 8px;
+	  -khtml-border-radius-bottomleft: 8px;
+	    -moz-border-radius-bottomleft: 8px;
+	        border-bottom-left-radius: 8px;
+}
+.qoolbar p {
+	text-align: right;
+	margin: 0px;
+}
+.qoolbar .verb-qiki {
+	display: block;
+	float: right;
+	clear: both;
+}
+
+.verb-object {
+	background-color: transparent;
+}
+
+.verb-object.drop-hover {
+	background-color: white;
+}
+
+
+
+/* Virgin Qikis (qiki404.php) */
+
+.Comment-Heading {
+	display: block;
+	margin: 10px 0px 0px 0px;
+	text-decoration: underline;
 }

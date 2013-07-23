@@ -20,11 +20,21 @@ $(function() {
 		});
 		return false;
 	});
-	$("#loginform form").submit(function() {   // intercept with ajax: return to current page, because form-action may be qiki404.php
+	$("#loginform form").submit(function() {
+		handleform($(this), 'Login');
+		return false;
+	});
+	$("#signupform form").submit(function() {
+		handleform($(this), 'Signup', function() { 
+			alert('Thanks for signing up, now you may log in.');
+		});
+		return false;
+	});
+	function handleform($form, kind, success_handler) {   // intercept with ajax: return to current page, because form-action may be qiki404.php
 		$.ajax({
-			type: $(this).attr('method'),
-			url: $(this).attr('action'),
-			data: $(this).serialize(),
+			type: $form.attr('method'),
+			url: $form.attr('action'),
+			data: $form.serialize(),
 			success: function(responseText) {
 				// TODO: not be so wasteful with big returned (nonsense http://qiki.info/qiki404.php) page that's trashed here? 
 				// TODO: review all the special cases of logging in
@@ -32,29 +42,24 @@ $(function() {
 				//       in pop up form or whole-page
 				//       N.B. all these alternatives make User.php rickety.  Unit tests?  More like Wholeshebang tests?
 
-				if (/class\=\'User-error\'/.test(responseText)) {  // TODO: more robust detection
-					alert("Login failed");   // TODO: show the actual error message
-					window.location.reload(true);
-					
-					
-					//// The following is from http://stackoverflow.com/questions/2825586/inplace-replace-entire-html-document
-					//// but it leads to several strange "Resend" popups, even on subsequent ajax requests, I guess because reload() is called in the else-clause
-					// $('body').html(responseText);   // something went wrong, display whatever came back
-					
-					
-					// Ideally what would happen here is to act as if the form-submit had never been intercepted
-					
-					
+				// if (/class\=\'User-error\'/.test(responseText)) {  // DONE: more robust detection
+				var estart = responseText.indexOf(User_ERROR_START);
+				var eend   = responseText.indexOf(User_ERROR_END);
+				if (estart == -1 || eend == -1) {   // TODO: a more positive confirmation, than absence of error message
+					if (success_handler != null) {
+						success_handler();
+					}
+					window.location.reload(true);   // to get back to the page you were on
 				} else {
-					window.location.reload(true);   // reload in order to get back to the page you were on
+					var message = responseText.substring(estart + User_ERROR_START.length, eend);
+					alert(kind + " error: " + message); 
 				}
 			},
 			error: function(xhr, errorType, errorThrown) {
-				alert("Login error " + errorType + ", " + errorThrown + ":\n\n" + xhr.responseText);
+				alert(kind + " failed " + errorType + ", " + errorThrown + ":\n\n" + xhr.responseText);
 			},
 		});
-		return false;
-	});
+	}
 	$("#logoutlink").click(function() {
 		$.ajax({
 			type: 'head',   // so as not to be so wasteful with big returned page that must be trashed here (does that still run the PHP twice?)
@@ -92,57 +97,160 @@ $(function() {
 	
 	
 	
-	jQuery.fn.toolparts = function() {
-		toolcombo = $(this).closest(".toolcombo");
-		toolopen = toolcombo.find(".toolopen");
-		toolbar = toolcombo.find(".toolbar");
+	
+	
+	// VERBBAR
+	
+	jQuery.fn.verbparts = function() {
+		verbcombo = $(this).closest(".verbcombo");
+		verbopen = verbcombo.find(".verbopen");
+		verbbar = verbcombo.find(".verbbar");
 	};
-	jQuery.fn.settletools = function() {
-		$(this).toolparts();
-		if (toolbar.is(':visible')) {   // when this toolbar becomes visible...
-			$(".toolbar").not(toolbar).hide();   // hide all other toolbars
-			$(".toolopen").not(toolopen).fadetool();
-			toolopen.darkentool();
-			toolopen.attr('title', 'hide tools');
+	jQuery.fn.settleverbs = function() {
+		$(this).verbparts();
+		if (verbbar.is(':visible')) {   // when this verbbar becomes visible...
+			$(".verbbar").not(verbbar).hide();   // hide all other verbbars
+			$(".verbopen").not(verbopen).fadeverb();
+			verbopen.darkenverb();
+			verbopen.attr('title', 'hide verbs');
 		} else {
-			toolopen.fadetool();
-			toolopen.attr('title', 'see tools');
+			verbopen.fadeverb();
+			verbopen.attr('title', 'see verbs');
 		}
 	};
-	jQuery.fn.fadetool = function() {
-		$(this).removeClass('tooldarken');   
-		$(this).addClass('toolfade');
+	jQuery.fn.fadeverb = function() {
+		$(this).removeClass('verbdarken');   
+		$(this).addClass('verbfade');
 	};
-	jQuery.fn.darkentool = function() {
-		$(this).removeClass('toolfade');   
-		$(this).addClass('tooldarken');
+	jQuery.fn.darkenverb = function() {
+		$(this).removeClass('verbfade');   
+		$(this).addClass('verbdarken');
 	};
 	
-	
-	
-	$(".toolopen").click(function() {
-		$(this).toolparts();
-		toolbar.toggle().settletools();
+	$(".verbopen").click(function() {
+		$(this).verbparts();
+		verbbar.toggle().settleverbs();
 	});
-	$(".toolbar").hide().settletools();
+	$(".verbbar").hide().settleverbs();
 	
-	$(".toolbar .tool-qiki").click(function() {
-		$(this).toolparts();
-		var $tool = $(this);
+	function usentence(verb, oclass, oid, delta) {   // create a sentence where the user (id or IP address) is the implied subject
 		$.post(FORMSUBMITURL, {
-			'action': 'tool_associate',
-			'toolname': $tool.data('tool'),
-			'obj': toolcombo.data('obj'),
-			'objid': toolcombo.data('objid'),
+			'action': 'verb_associate',
+			'verbname': verb,
+			'obj': oclass,
+			'objid': oid,
+			'delta': delta,
 		}, function(responseText, textStatus, jqXHR) {
 			if ($.trim(responseText) === 'success') {
-				//alert($tool.data('tool'));
-				window.location.reload();
+				window.location.reload();   // TODO: instead update object model, for pure AJAX without refresh
 			} else {
-				alert('Unable to ' + $tool.data('tool') + '-associate a ' + toolcombo.data('obj') + ': ' + responseText);
+				alert('Unable to ' + verb + '-associate a ' + oclass + ': ' + responseText);
 			}
-		}).fail(function(jqXHR, textStatus) {
-			alert('Failed to ' + $tool.data('tool') + '-associate a ' + toolcombo.data('obj') + ': ' + textStatus + ', status ' + jqXHR.status);
+		}).fail(function(jqXHR, textStatus, errorThrown) {
+			alert('Failed to ' + verb + '-associate a ' + oclass + ': ' + textStatus + ', status ' + jqXHR.status + ', response ' + delta);
 		});
+	}
+	
+	$(".verbbar .verb-qiki").click(function() {
+		$(this).verbparts();
+		var $verb = $(this);
+		usentence($verb.data('verb'), verbcombo.data('obj'), verbcombo.data('objid'), 1);
 	});
+	
+	
+	
+	// Qoolbar
+	
+	$(".qoolbar .verb-qiki")	
+		.draggable({ 
+			helper: "clone", 
+			cursor: "-moz-grabbing",   // -moz-grabbing works FF 12-22, maybe used to work Chrome 28   
+			// TODO: make Chrome,IE,etc work (client sniffing??)   
+			// TODO: hover-hint hand   (grab aka -webkit-grab aka -moz-grab)
+			// TODO: abandon jQuery-UI??
+			scroll: false,
+			start: function() {
+				$(document.body).css('background-color', '#DDDDDD');
+			},
+			stop: function() {
+				$(document.body).css('background-color', 'transparent');
+			},
+		})
+	;
+	$(".qoolbar").addClass('fadeUntilHover');
+	$(".verb-object")
+		.droppable({
+			accept: ".qoolbar .verb-qiki",
+			hoverClass: 'drop-hover',
+			drop: function(event, ui) {
+				$source = ui.draggable;
+				$dest = $(event.target);
+				verb = $source.data('verb');
+				oclass = $dest.data('object-class')
+				oid = $dest.data('object-id');
+				sclass = $source.closest('.verb-object').data('object-class');
+				sid = $source.closest('.verb-object').data('object-id');
+				if (sclass != oclass || sid != oid) {
+					usentence(verb, oclass, oid, 1);
+				}
+			},
+		})
+	;
+	
+	// Unverbing a comment
+	
+	window.hackvirgin = true;
+	
+	$(".mezero")
+		// .draggable('disable') // Error: cannot call methods on draggable prior to initialization; attempted to call method 'disable'
+		.on('dragstart', function(event) { event.preventDefault(); })
+	;
+	
+	dragoptions = {
+			appendTo: 'body',
+			cursor: "-moz-grabbing",   // -moz-grabbing works FF 12-22, maybe used to work Chrome 28   TODO: make Chrome,IE,etc work (client sniffing??)   TODO: hover-hint hand   TODO: abandon jQuery-UI??
+			scroll: false,
+			start: function(event, ui) {
+				$(document.body).css('background-color', '#DDDDDD');
+			},
+			stop: function(event, ui) {
+				$(document.body).css('background-color', 'transparent');
+				$source = $(event.target);
+				verb = $source.data('verb');
+				oclass = $source.closest('.verb-object').data('object-class');
+				oid = $source.closest('.verb-object').data('object-id');
+				usentence(verb, oclass, oid, -1);
+			},
+	};
+	$(".melast").draggable(dragoptions);
+	
+	dragoptions.helper = function(event, wtf_nothingwecanuse) {
+			    $source = $(this);
+				if (window.hackvirgin) {
+					window.hackvirgin = false;
+					$.getScript("http://visibone.com/javascript/utils.js", function(d,t,j) {
+						//// alert(objectDissect(firstParameterOfHelperFunction));
+						//// Output was:  object altKey(b) bubbles(b) button(n) buttons(u) cancelable(b) clientX(n) clientY(n) ctrlKey(b) currentTarget(o) data(o) 
+						////              delegateTarget(o) eventPhase(n) fromElement(u) handleObj(o) isDefaultPrevented(f) isImmediatePropagationStopped(f) 
+						////              isPropagationStopped(f) jQuery1102030696228839680484(b) metaKey(b) offsetX(u) offsetY(u) originalEvent(o) pageX(n) 
+						////              pageY(n) preventDefault(f) relatedTarget(o) result(b) screenX(n) screenY(n) shiftKey(b) stopImmediatePropagation(f) 
+						////              stopPropagation(f) target(o) timeStamp(n) toElement(u) type(s) view(o) which(n)
+						//// So the first parameter is the effing event
+					});
+					//// alert('class ' + event.target.className + ' tag ' + event.target.tagName + ' parent ' + event.target.parentNode.tagName)
+					//// Output was:  "class  tag IMG parent SPAN"
+					//// Conclusion:  event.target is the img originally clicked on, not the span.menozero we're conceptually dragging
+					//alert(typeof($source.data('postsup')) + ' ' + typeof($source.data('postsub')));   // number or undefined
+				}
+				//if ($source.data('postsup') === '1' && $source.data('postsub') === undefined) {   // return of undefined documented: http://api.jquery.com/data/
+				if ($source.data('postsup') == 1 && $source.data('postsub') == undefined) {   // return of undefined documented: http://api.jquery.com/data/
+					return $(this);   // the last man standing is not cloned, he's just dragged away
+				} else {
+					var imageWithoutTheNumbers = $source.find('img');
+					return imageWithoutTheNumbers.clone();   // 
+				}
+	};
+	$(".menozero").draggable(dragoptions);
+
+	// for mouseheld event see http://stackoverflow.com/a/4081293/673991 and http://jsfiddle.net/gnarf/pZ6BM/
 });

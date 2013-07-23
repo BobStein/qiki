@@ -7,9 +7,10 @@ require_once('User.php');  // to get the name of who made a comment
 require_once('mysqli_read_column.php');
 require_once('mysqli_read_row.php');
 require_once('qikilink.php');
+require_once('Scorer.php');
 
 class Comment extends SteinTable {
-	static protected $table = "Comment";
+	static protected $table = __CLASS__;
 	// static protected /* SteinPDO */ $pdo;
 	protected $row;
 	public function __construct($id) {
@@ -31,7 +32,7 @@ class Comment extends SteinTable {
 		// }
 		// return Comment::$pdo;
 	// }
-	static public function insert($qomment, $qontributor, $kontext) {
+	static public function insert($qomment, $qontributor, $kontext) {   // TODO:  Comment.qontributor -> Sentence.subject_id?
 		try {
 			$stmt = Comment::$pdo->prepare("
 				INSERT INTO ".Comment::$table." ( qomment,  qontributor,  kontext, created) 
@@ -42,37 +43,100 @@ class Comment extends SteinTable {
 		}
 		return new Comment(Comment::$pdo->lastInsertId());
 	}
-	static public function byRecency($kontext, $n) {
-		$ids = Comment::$pdo->column("
-			SELECT comment_id 
-			FROM ".Comment::$table."
-			ORDER BY created DESC
-			LIMIT ?
-		", array($n));   // Note: requires setting PDO::ATTR_EMULATE_PREPARES to FALSE
+	static public function byRecency($opts) {   // returns recent Comment objects, array(id => Comment, ...)
+		// $ids = Comment::$pdo->column("
+			// SELECT comment_id 
+			// FROM ".Comment::$table."
+			// $WHEREclause
+			// ORDER BY created DESC
+			// LIMIT ?
+		// ", array($opts['limit']));   // Note: requires setting PDO::ATTR_EMULATE_PREPARES to FALSE
+		$ids = Comment::fetchem($opts);
 		$retval = array();
 		foreach($ids as $id) {
-			$retval[] = new Comment($id);
+			$retval[$id] = new Comment($id);
 		}
 		return $retval;
 	}
-	static public function byKontext($kontext, $orderclause = '') {
-		$ids = Comment::$pdo->column("
-			SELECT comment_id 
-			FROM ".Comment::$table."
-			WHERE kontext=? 
-			$orderclause
-		", array($kontext));
+	static public function byKontext($kontext, $opts = array()) {   // returns Comment objects about a qiki, array(id => Comment, ...)
+		$opts += array(
+			'kontext' => $kontext,
+		);
+		// $ids = Comment::$pdo->column("
+			// SELECT comment_id 
+			// FROM ".Comment::$table."
+			// WHERE kontext=? 
+			// ORDER BY created DESC
+		// ", array($kontext));
+		$ids = Comment::fetchem($opts);
 		$retval = array();
 		foreach($ids as $id) {
-			$retval[] = new Comment($id);
+			$retval[$id] = new Comment($id);
 		}
 		return $retval;
+	}
+	static protected function fetchem($opts) {
+		$opts += array(
+			'limit' => '10',        // max number of comments to return
+			'minlevel' => 'anon',	// 'anon' or 'user' -- minimum level of comment author to include
+			'kontext' => '',        // e.g. 'php/strlen'
+			'totalrows' => &$countRowsRegardlessOfLimit,
+			'scorer' => '',
+			'minscore' => 0,
+		);
+		$vars = array();
+		$wheres = array();
+		switch ($opts['minlevel']) {
+		case 'anon': 
+			break;
+		case 'user': 
+			$ALLDIGITS = "^[[:digit:]]+\$";
+			$wheres[] = "qontributor RLIKE '$ALLDIGITS'"; 
+			break;  
+		default: 
+			die("Comment::byRecency(array('minlevel'=>'$opts[minlevel]'))");
+		}
+		if ($opts['kontext'] == '') {
+			
+		} else {
+			$wheres[] = "kontext = ?";
+			$vars[] = $opts['kontext'];
+		}
+		
+		if ($wheres == array()) {
+			$WHEREclause = '';
+		} else {
+			$WHEREclause = 'WHERE ' . join(' AND ', $wheres);
+		}
+		if ($opts['limit'] == '') {
+			$LIMITclause = '';
+		} else {
+			$LIMITclause = "LIMIT ?";
+			$vars[] = $opts['limit'];
+		}
+		$ids = Comment::$pdo->column("
+			SELECT SQL_CALC_FOUND_ROWS comment_id 
+			FROM ".Comment::$table."
+			$WHEREclause
+			ORDER BY created DESC
+			$LIMITclause
+		", $vars);
+		$opts['totalrows'] = intval(Comment::$pdo->cell("SELECT FOUND_ROWS()"));
+		if ($opts['scorer'] != '') {
+			$scorer = new Scorer($opts['scorer']);
+			foreach ($ids as $k => $id) {
+				if ($scorer->score(array('subject_class' => NounClass::Comment)) < $opts['minscore']) {
+					unset($ids[$k]);
+				}
+			}
+		}
+		return $ids;
 	}
 	public function htmlQomment() {
-		return qikilink(nl2br(htmlspecialchars(trim($this->row['qomment']))));
+		return qikilinkifyText(nl2br(htmlspecialchars(trim($this->row['qomment']))));
 	}
 	public function htmlKontext() {
-		return qikilink("qiki:" . $this->row['kontext']);
+		return qikilinkWhole($this->row['kontext']);
 	}
 	public function whotype() {
 		if (1 == preg_match('/^\\d+$/', $this->row['qontributor'])) {
@@ -110,7 +174,7 @@ class Comment extends SteinTable {
 	}
 	public function whoshort() {
 		// TODO: less tricky, ricketty reliance here on htmlspecialchars() being called by $this->who(): neither foiling processing here, nor needing more encoding
-		// TODO: subsume the "by " prepended by caller into the span-title hover-hint (somehow)
+		// TODO: subsume the "by " text that is prepended by the caller, into the span-title hover-hint (somehow)
 		$who = $this->who();
 		switch ($this->whotype()) {
 		case 'user':
@@ -164,5 +228,3 @@ class Comment extends SteinTable {
 		}
 	}
 }
-
-?>
