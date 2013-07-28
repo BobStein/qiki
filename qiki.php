@@ -5,21 +5,32 @@
 //
 // Generic includable for qiki site.
 
+
+
 define('DEBUG', TRUE);   // display PHP errors, jquery.js; FALSE for jquery.min.js
-define('JQUERY_MIN', FALSE);   // minimize jQuery source
-
-if (DEBUG) {
-	error_reporting(E_ALL);
-	ini_set("display_errors", 1);
-}
-
-
+define('JQUERY_MIN', TRUE);   // minimize jQuery source
+define('JQueryVersion', '1.10.2');
+define('JQueryUIversion', '1.10.2');   // UI 1.10.3 has draggable bug http://bugs.jqueryui.com/ticket/9315
 
 $DOMAIN = "qiki.info";
 $FORMSUBMITURL = $_SERVER['PHP_SELF'];
 $ALLOW_SIGNUP = FALSE;
 $QI_COLOR = "#0050D0"; // Qi background blue
 $KI_COLOR = "#FFD800"; // Ki background yellow
+
+
+
+if (DEBUG) {
+	error_reporting(E_ALL);
+	ini_set("display_errors", 1);
+}
+if (JQUERY_MIN) {
+	define('DOTMIN', '.min');
+} else {
+	define('DOTMIN', '');
+}
+
+
 
 require_once('SteinPDO.php');
 require_once('UserQiki.php');
@@ -48,10 +59,6 @@ if (!UserQiki::$client->may(UserQikiAccess::see)) {
 	die("<p>qiki.info is temporarily down.</p>\n");
 }
 
-function dotmin() {
-	if (JQUERY_MIN) echo '.min';
-}
-
 function htmlhead($title, $opts = array()) {   // TODO: move JavaScript and CSS loading to htmlfoot()?  Allow $opts both places, but execute them all in htmlfoot()???
 	global $DOMAIN;
 	global $FORMSUBMITURL;
@@ -71,8 +78,8 @@ function htmlhead($title, $opts = array()) {   // TODO: move JavaScript and CSS 
 			<title><?php echo $title; ?></title>
 			<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
 
-			<script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery<?php dotmin(); ?>.js" type="text/javascript"></script>
-			<script type="text/javascript">window.jQuery || document.write("<"+"script src='//tool.qiki.info/js/jquery-1.10.2<?php dotmin(); ?>.js' type='text/javascript'><\/script>\n")</script>
+			<script src="//ajax.googleapis.com/ajax/libs/jquery/<?php echo JQueryVersion; ?>/jquery<?php echo DOTMIN; ?>.js" type="text/javascript"></script>
+			<script type="text/javascript">window.jQuery || document.write("<"+"script src='//tool.qiki.info/js/jquery-1.10.2<?php echo JQueryVersion . DOTMIN; ?>.js' type='text/javascript'><\/script>\n")</script>
 			<!-- script src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script -->
 			<script type="text/javascript">
 				FORMSUBMITURL = '<?php echo addslashes($FORMSUBMITURL); ?>';
@@ -128,9 +135,9 @@ function htmlhead($title, $opts = array()) {   // TODO: move JavaScript and CSS 
 
 function headersJQueryUI() {
 	return "
-			<script src='//ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/jquery-ui".dotmin().".js' type='text/javascript'></script>
-			<script type='text/javascript'>window.jQuery.ui || document.write(\"<\"+\"script src='//tool.qiki.info/js/jquery-ui-1.10.3".dotmin().".js' type='text/javascript'><\/script>\\n\")</script>
-			<link href='//ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/themes/start/jquery-ui".dotmin().".css' type='text/css' rel='stylesheet' />
+			<script src='//ajax.googleapis.com/ajax/libs/jqueryui/".JQueryUIversion."/jquery-ui".DOTMIN.".js' type='text/javascript'></script>
+			<script type='text/javascript'>window.jQuery.ui || document.write(\"<\"+\"script src='//tool.qiki.info/js/jquery-ui-".JQueryUIversion . DOTMIN.".js' type='text/javascript'><\/script>\\n\")</script>
+			<link href='//ajax.googleapis.com/ajax/libs/jqueryui/".JQueryUIversion."/themes/start/jquery-ui".DOTMIN.".css' type='text/css' rel='stylesheet' />
 	\n";    // Note, no local backup for jQuery UI CSS files (there are a bunch) from Google - hoping it will work if ugly
 }
 
