@@ -2,10 +2,18 @@
 
 // qikilink.php
 // ------------
-// qikipath()             path <-- qiki
+// qikipath()    internal path <-- qiki (e.g. "php/strlen")
 // qikiurl()               url <-- qiki
-// qikilinkWhole()   hyperlink <-- qiki    // unify, objectify or something.  yeah, objectify!
-// qikilinkifyText()  convert all qiki:blah/blah codes in a swath of text to hyperlinks
+// qikilinkWhole()   hyperlink <-- qiki    
+//
+// qikilinkifyText()  convert all "qiki:blah/blah" codes in a swath of text to hyperlinks
+
+
+
+// TODO:  unify, objectify or something.  yeah, objectify!
+// TODO: helpful hover hints, e.g. "Type a qiki-link like this:  qikilink:php/strlen  "
+
+
 
 function test_qikilink() {
 	assertEquals("'http://qiki.info/php/strlen'", "qikiurl('php/strlen')");
@@ -19,7 +27,7 @@ function qikilinkWhole($q) {
 	return "<a href='" . qikiurl($q) . "' class='qikilink'>" . htmlspecialchars($q) . "</a>";
 }
 
-function qikilink($s)  {   // obsolete, call qikilinkWhole() or qikilinkifyText()
+function qikilink($s)  {   // OBSOLETE, call qikilinkWhole() or qikilinkifyText()
 	return qikilinkifyText($s);
 }
 
@@ -39,7 +47,7 @@ function qikilinkifyText($s) {   // convert to hyperlinks all phrases e.g. "qiki
 	return $s;
 }
 
-function qikiurl($q) {   // convert to a URL all phrases, e.g. "http://qiki.info/php/strlen" === qikiurl("php/strlen")
+function qikiurl($q) {   // convert to a URL all phrases, e.g. "http://qiki.info/php/strlen" === qikiurl("php/strlen") === qikiurl(array("php", "strlen"))
 	switch (gettype($q)) {
 	case 'string':
 		$a = explode('/', $q);

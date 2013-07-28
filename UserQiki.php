@@ -6,6 +6,7 @@
 require_once('User.php');
 User::$table = 'UserQiki';
 require_once('SteinPDO.php');
+require_once('Preference.php');
 require_once(realpath(dirname(__FILE__) . '/../toolqiki/config/settings.php'));   // thanks http://stackoverflow.com/a/2860184/673991
 
 User::$PATHCONTEXT = "/";  // context is all of http://qiki.info/
@@ -36,6 +37,17 @@ class UserQiki extends User {
 	}
 	public function __construct() {   // singleton class -- should be protected, but:  Fatal error: Access level to UserQiki::__construct() must be public (as in class User)
 		parent::__construct(SteinTable::pdo());
+	}
+	
+	public $prefs = NULL;
+	public function preference($pref) {
+		if (is_null($this->prefs)) {
+			$this->prefs = Preference::fromUser($this->id());
+		}
+		if (!isset($this->prefs[$pref])) {
+			return FALSE;
+		}
+		return $this->prefs[$pref];
 	}
 
 	static protected $anonymous_allow = TRUE;  // TODO: a better way (make this static private, and from infra.qiki call UserQiki::anonymousDisallow()?)
@@ -131,7 +143,9 @@ UserQiki::mayer(function($user, $access, $object, $context) {   // TODO: this co
 		$objecttype = gettype($object);
 		switch (TRUE) {
 		case ($object === NounClass::Comment):
-			return $user->isanon() ? $SETTINGS['allow-anoncomm'] : $SETTINGS['allow-usercomm'];
+			return $user->isAnon() ? $SETTINGS['allow-anoncomm'] : $SETTINGS['allow-usercomm'];
+		case ($object === NounClass::Verb):
+			return $user->isAnon() ? $SETTINGS['allow-anonqool'] : $SETTINGS['allow-userqool'];
 		}
 		die("Unknown user-may Create object: " . var_export($object, TRUE));
 		
@@ -143,18 +157,18 @@ UserQiki::mayer(function($user, $access, $object, $context) {   // TODO: this co
 		case ($object === NounClass::Script):
 			if (       1 == preg_match('#^/home/visibone/public_html/qiki/index.php#', $context)
 			        || 1 == preg_match('#^/home/visibone/public_html/metaqiki/#'     , $context)) {
-				return $user->isanon() ? $SETTINGS['allow-anonseehome'] : $SETTINGS['allow-userseehome'];
+				return $user->isAnon() ? $SETTINGS['allow-anonseehome'] : $SETTINGS['allow-userseehome'];
 			} else if (1 == preg_match('#^/home/visibone/public_html/qiki/qiki404.php#', $context)) {
-				return $user->isanon() ? $SETTINGS['allow-anonseeqiki'] : $SETTINGS['allow-userseeqiki'];
+				return $user->isAnon() ? $SETTINGS['allow-anonseeqiki'] : $SETTINGS['allow-userseeqiki'];
 			} else if (1 == preg_match('#^/home/visibone/public_html/devqiki/#', $context)) {
 				return $user->isSuper();
 			}
 			die("Unknown user-may See Script context: " . var_export($context, TRUE));
 		case ($object === NounClass::Comment):
 			if ($context == 'anon') {  // about anonymous comments:
-				return $user->isanon() ? $SETTINGS['allow-anonseeanon'] : $SETTINGS['allow-userseeanon'];
+				return $user->isAnon() ? $SETTINGS['allow-anonseeanon'] : $SETTINGS['allow-userseeanon'];
 			} else if ($context == 'user') {   // about all comments (even from a logged-in-user)
-				return $user->isanon() ? $SETTINGS['allow-anonseeuser'] : $SETTINGS['allow-userseeuser'];
+				return $user->isAnon() ? $SETTINGS['allow-anonseeuser'] : $SETTINGS['allow-userseeuser'];
 			}
 			die("Unknown user-may See Comment context: " . var_export($context, TRUE));
 		default:

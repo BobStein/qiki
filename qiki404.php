@@ -15,6 +15,8 @@ User::$ACTIONPREFIX = $_SERVER['PHP_SELF'];
 require_once('qiki.php'); 
 require_once('Comment.php');
 require_once('Verb.php');
+require_once('Scorer.php');
+require_once('Preference.php');
 require_once('../toolqiki/php/parameter.php');
 
 
@@ -25,16 +27,40 @@ if (isset($_REQUEST['action'])) {
 	
 	case 'verb_associate':
 		$verbname = parameter('verbname');
+		if (!UserQiki::$client->may(UserQikiAccess::create, NounClass::Verb, $verbname)) {
+			die("You aren't allowed to use the '$verbname' verb.");
+		}
 		$obj = parameter('obj');
 		$objid = parameter('objid');
 		$delta = parameter('delta');
-		if (UserQiki::$client->alreadyLoggedIn()) {
-			$qontributor = UserQiki::$client->id();
+		if (UserQiki::$client->alreadyLoggedIn()) {   // TODO: !$client->isanon()?
+			$subject_class = NounClass::User;
+			$subject_id = UserQiki::$client->id();
 		} else {
-			$qontributor = $_SERVER['REMOTE_ADDR'];   // TODO: separate sentence, and always put it in there?  Or some other way of recording IP?
+			$subject_class = NounClass::IPAddress;
+			$subject_id = ip2long($_SERVER['REMOTE_ADDR']);
 		}
 		$verb = new Verb($verbname);
-		$association = $verb->associate($obj, $objid, $qontributor, $delta);
+		$verb->associate($obj, $objid, $subject_class, $subject_id, $delta);
+		echo "success";
+		exit;
+	case 'verb_set':   // TODO:  MMM with verb_associate
+		$verbname = parameter('verbname');
+		if (!UserQiki::$client->may(UserQikiAccess::create, NounClass::Verb, $verbname)) {
+			die("You aren't allowed to set a '$verbname' verb.");
+		}
+		$obj = parameter('obj');
+		$objid = parameter('objid');
+		$setting = parameter('setting');
+		if (UserQiki::$client->alreadyLoggedIn()) {   // TODO: !$client->isanon()?
+			$subject_class = NounClass::User;
+			$subject_id = UserQiki::$client->id();
+		} else {
+			$subject_class = NounClass::IPAddress;
+			$subject_id = ip2long($_SERVER['REMOTE_ADDR']);
+		}
+		$verb = new Verb($verbname);
+		$verb->set($obj, $objid, $subject_class, $subject_id, $setting);
 		echo "success";
 		exit;
 	case 'newcomment':
@@ -69,9 +95,47 @@ if (UserQiki::$client->may(UserQikiAccess::see, NounClass::Comment, 'anon')) {
 	$whichcomments = "Comments by users";
 }
 $limitrows = 50;
-$comments = Comment::byKontext(kontext(), array('limit' => $limitrows, 'totalrows' => &$totalrows, 'minlevel' => $minlevel));
+$comments = Comment::byKontext(kontext(), array(
+	'limit' => $limitrows, 
+	'totalrows' => &$totalrows, 
+	'minlevel' => $minlevel,
+	// 'scorer' => 'spammy',
+	// 'maxscore' => 0.5,
+	'client_id' => UserQiki::$client->id(),
+));
 
-htmlhead(htmlspecialchars(qontext()) . ' - qiki', array('head' => array(headersJQueryUI())));
+if (UserQiki::$client->isanon()) {
+	$northeast = "
+		<span id='prefs' class='disabled-like'>
+			<label title='Some users can see anonymous comments.'><input id='showanon' type='checkbox' disabled='disabled' />anon</label>
+			<label title='Some users can see spam.'><input id='showspam' type='checkbox' disabled='disabled' />spam</label>
+		</span>
+	\n";
+} else {
+	// $prefs = Preference::fromUser(UserQiki::$client->id());
+	// var_export($prefs);
+	$anonchecked = UserQiki::$client->preference('anonymous') ? "checked='checked'" : '';
+	$spamchecked = UserQiki::$client->preference('spam')      ? "checked='checked'" : '';
+	$northeast = "
+		<span id='prefs'>
+			<label title='Show anonymous comments?'  ><input id='showanon' type='checkbox' autocomplete='off' $anonchecked />anon</label>
+			<label title='Show comments marked spam?'><input id='showspam' type='checkbox' autocomplete='off' $spamchecked />spam</label>
+		</span>
+	\n";
+}
+
+// TODO:  show (no|mild|all) spam
+//                 some
+//                 strong
+// Options:
+//		show all spam
+//      show no spam
+//		spam filter spammy.visibone.com/spamfilter.php   (using a RESTful submission?)
+
+htmlhead(htmlspecialchars(qontext()) . ' - qiki', array(
+	'head' => array(headersJQueryUI()), 
+	'htmlNortheast' => $northeast
+));
 
 $linkToQiki = qikilinkWhole(qontext());
 if (UserQiki::$client->may(UserQikiAccess::create, NounClass::Comment)) {
@@ -82,9 +146,12 @@ if (UserQiki::$client->may(UserQikiAccess::create, NounClass::Comment)) {
 				You think something should be here?&nbsp; 
 				<?php
 					if (count($comments) > 0) {
-						echo "Cool, you're not alone!";
+						$title="Welcome GREAT THINKER!&#10;Other minds believe like you, an answer should be here.  Speak your mind too.";
+						// TODO: randomized alternatives
+						echo "Cool, <span class='eyecatchy' title='$title'>you're not alone!</span>";
 					} else {
-						echo "Cool, you're the first!";
+						$title="Welcome PIONEER!&#10;Write your thoughts here for those who follow.";
+						echo "Cool, <span class='eyecatchy' title='$title'>you're the first!</span>";
 					}
 				?>
 			</span><span id='whatwouldlook' class='kare2'>
@@ -115,8 +182,8 @@ if (UserQiki::$client->may(UserQikiAccess::create, NounClass::Comment)) {
 	echo "<p>(The qiki $linkToQiki is not currently taking comments.)</p>\n";
 }
 
-if (UserQiki::$client->isSuper()
- || UserQiki::$client->isGuest()) {
+// if (UserQiki::$client->isSuper() || UserQiki::$client->isGuest()) {
+if (UserQiki::$client->may(UserQikiAccess::create, NounClass::Verb)) {
 	echo Verb::qoolbar(UserQiki::$client->id());
 }
 
@@ -144,11 +211,27 @@ if (UserQiki::$client->isSuper()) {
 if (count($comments) > 0) {
 	echo "<span class='Comment-Heading'>$whichcomments:</span>\n";   // TODO: tell how many anonymous comments were removed from this view
 }
+$spammy = new Scorer('spammy');
 foreach ($comments as $comment_id => $comment) {
+
+	$spamscore = $spammy->score(array(
+		NounClass::Comment => $comment->id(), 
+		'client_id' => UserQiki::$client->id(),
+	));
+	
+	if ($comment->whotype() != 'user' && !UserQiki::$client->preference('anonymous')) continue;
+	if ($spamscore > 0.0              && !UserQiki::$client->preference('spam'     )) continue;
+	
+	if ($spamscore <= 0.0)                                    { $spamclass = 'spamclass-0';    }
+	elseif           (0.0 < $spamscore 
+	                     && $spamscore < 1.0)                 { $spamclass = 'spamclass-half'; }
+	else                              /* 1.0 <= $spamscore */ { $spamclass = 'spamclass-1';    }
+	
 	echo "<span "
-		."class='verb-object' "
-		."data-object-class='" . get_class($comment) . "' "
-		."data-object-id='$comment_id'"
+		."class='noun-object selectable-noun $spamclass' "
+		."data-object-class='" . NounClass::Comment . "' "
+		."data-object-id='$comment_id' "
+		."data-spamscore='$spamscore' "
 	.">";
 		echo $comment->htmlQomment();
 		echo "&nbsp; ";
@@ -179,7 +262,7 @@ foreach ($comments as $comment_id => $comment) {
 				
 				
 				$tooltip = '';
-				if ($valueMe == 0.0) {
+				if ($valueMe <= 0.0) {
 					$numberMe = '';
 					$what = 'this comment';
 					$classes = 'mezero';
@@ -219,10 +302,11 @@ foreach ($comments as $comment_id => $comment) {
 			}
 		}
 		if ($SHOW_VERBBAR) {
-			verbexpander(get_class($comment), $comment->id());
+			verbexpander(NounClass::Comment, $comment->id());
 		}
+		
 	echo "</span>";
-	echo "\t<br />\n";
+	echo "<br />\n";
 }
 $numRowsNotShown = max(0, $totalrows - $limitrows);
 if ($numRowsNotShown > 0) {
@@ -232,18 +316,18 @@ if ($numRowsNotShown > 0) {
 
 htmlfoot();
 
-function verbexpander($obj, $objid) {   // VERBBAR
-	echo "\t<span class='verbcombo' data-obj='$obj' data-objid='$objid'>\n";
-		$verbTool = new Verb('tool');
-		echo "\t\t" . $verbTool->img(array('title' => 'see verbs', 'class' => 'verbopen')) . "\n";
-		echo "\t\t<span class='verbbar'>\n";
-			foreach(Verb::all() as $verbEach) {
-				if ($verbEach->id() != $verbTool->id()) {
-					echo "\t\t\t" . $verbEach->img() . "\n";
-				}
-			}
-		echo "\t\t</span>\n";
-	echo "\t</span>\n";
-}
+// function verbexpander($obj, $objid) {   // VERBBAR
+	// echo "\t<span class='verbcombo' data-obj='$obj' data-objid='$objid'>\n";
+		// $verbTool = new Verb('tool');
+		// echo "\t\t" . $verbTool->img(array('title' => 'see verbs', 'class' => 'verbopen')) . "\n";
+		// echo "\t\t<span class='verbbar'>\n";
+			// foreach(Verb::all() as $verbEach) {
+				// if ($verbEach->id() != $verbTool->id()) {
+					// echo "\t\t\t" . $verbEach->img() . "\n";
+				// }
+			// }
+		// echo "\t\t</span>\n";
+	// echo "\t</span>\n";
+// }
 
 ?>

@@ -5,32 +5,49 @@
 require_once('SteinPDO.php');
 require_once('alldigits.php');
 
+
+
+// These are not class names NOR database table names, but they are _class field (enum) values, e.g. qiki.Sentence.subject_class
+// Sigh so the right thing to do is make a database of Nouns, with a column of class names.  (If there is a table, it can be named in <class name>::$table)
+
 interface NounClass {   // for the Sentence.object_class and Sentence.subject_class fields
-	const Verb    = 'Verb';      // don't be alarmed, the word "verb" is a noun, this might be used e.g. to state User X likes Verb Y
-	const Comment = 'Comment';   
-	const User    = 'User';		// TODO: how to handle new User versus new UserQiki?
-//	const Sentence
-// 	const URL					// nonnumeric identification!
-// 	const Qiki					// nonnumeric identification!
-// 	const IPaddress				// and store the ID using ip2long()
-//	const Server				// as in, a satellite qiki.somewheresite.com
-	const Script   = 'Script';	// for UserQiki::may(UserQikiAccess::blah, NounClass::Script)     (NOTE: only NounClass that isn't a php class name AND isn't a qiki database table name)
-								// Instead: qiki/qiki/software/xxxxx.php
+	const Verb       = 'Verb';      // don't be alarmed, the word "verb" is a noun, this might be used e.g. to state User X likes Verb Y
+	const Comment    = 'Comment';   
+	const User       = 'User';		// TODO: how to handle new User versus new UserQiki?
+//	const Sentence					// (a sentence can refer to another sentence, e.g. for 3 or more nouns)
+// 	const URL						// nonnumeric identification!
+// 	const Qiki						// nonnumeric identification!
+ 	const IPAddress	 = 'IPAddress';	// and store the ID using ip2long()
+//	const Server or Site			// as in, a satellite qiki.somewheresite.com
+//	const Scorer
+	const Preference = 'Preference';// user preference, e.g. seeing anonymous comments, or spam
+//	const Feature instead of Preference?
+	const Script     = 'Script';	// for UserQiki::may(UserQikiAccess::blah, NounClass::Script)     (NOTE: only NounClass that isn't a php class name AND isn't a qiki database table name)
+								    // Instead: qiki/qiki/software/xxxxx.php?  Or let a sentence make that association?
+//	const Unused					// for sentences with 1 noun?
+//	const Language					// (human)
+//	const Proposal					// a call for human action, e.g. development, censure, mediation, etc.
 }
+// Note these names must be secure, as they are not protected from injection attack (no check made whether they have ' in them).
+
+
 
 function allNounClasses() {
 	$r = new ReflectionClass('NounClass');
 	return $r->getConstants();
 }
 
-/* noun-verb-noun associations
+/* 
+Sentence
+--------
+noun-verb-noun associations
 User wrote Comment  (value = # times edited, created is first, modified is latest)
 Comment about Qiki  (value = replied-to comment??)
 Comment about Comment?  (value = root comment??)
 */
 
 class Sentence extends SteinTable implements NounClass {
-	static public $table = __CLASS__;  // accessible to Verb or Sentence
+	static public $table = __CLASS__;  // accessible to Verb or Sentence or Scorer or Preference
 	protected $row;
 	public $verb;
 	public function __construct($id) {
@@ -58,8 +75,18 @@ class Sentence extends SteinTable implements NounClass {
 	}
 }
 
+
+
+// Possible Verbs and sentence structures
+// --------------
+// noun1 versus noun2 (with user-wrote aux sentence) ratio of value -- 0.5 means noun2 is twice the value of noun 1, how to do zero or infinite?
+// user publish/privatize feature 
+// user requires-qlout (to see) feature -- 100 means based on some scoring, some level of qlout is required to see the feature
+// user thinks-verb-choice-wrong (in a) sentence -- 0=not at all, 1=there's a better verb, 2=egregiously wrong choice
+// user sees qiki (ala access_log)
+
 class Verb extends SteinTable {
-	static public $table = __CLASS__;  // accessible to Verb or Sentence
+	static public $table = __CLASS__;  // accessible to Verb or Scorer
 	//static protected /* SteinPDO */ $pdo;
 	protected $row;
 	public function __construct($nameorid) {
@@ -78,40 +105,57 @@ class Verb extends SteinTable {
 			", array($nameorid));
 		}
 	}
-	// static public function pdo($newpdo = NULL) {
-		// if (!is_null($newpdo)) {
-			// Verb::$pdo = $newpdo;
-		// }
-		// return Verb::$pdo;
-	// }
+	public function id() {
+		return $this->row['verb_id'];
+	}
+	public function name() {
+		return $this->row['name'];
+	}
 	public function state($opts) {
 		$opts += array(
 			'object' => array(NounClass::User => $user_id),
 			'subject'=> array(NounClass::User => $user_id),
 		);
 	}
-	public function associate($objclass, $objid, $subjid, $delta = 1) {
-		try {
-			$verbid = $this->id();
-			$sDelta = strval($delta);
-			$stmt = Verb::$pdo->prepare("
-				INSERT INTO ". Sentence::$table." (    verb_id, object_class, object_id, subject_class, subject_id,   value, created)
-							               VALUES (          ?,            ?,         ?,        'User',          ?,       ?,   NOW()) ON DUPLICATE KEY UPDATE value = value + (?)");
-			$stmt->execute(array                  (    $verbid,    $objclass,    $objid,                   $subjid, $sDelta,                                             $sDelta));
-		} catch (PDOException $e) {
-			die("Error associating {$this->name()} with a $obj - " . $e->getMessage());
+	
+	// TODO:  function state($subject, $verb, $object, $newValue or $deltaValue) where the 1st and 3rd parameters are Noun objects (and return a Sentence object)
+	
+	public function associate($objclass, $objid, $sclass, $sid, $delta = 1) {   // $object class and id can be tandem arrays
+		if (is_array($objclass) && is_array($objid)) {
+			if (count($objclass) != count($objid)) {
+				die("Verb::associate() object array count mismatch, class has " . count($objclass) . " and id has " . count($objid));
+			}
+			while ($objclass != array()) {
+				$nextclass = array_shift($objclass);
+				$nextid = array_shift($objid);
+				$this->associate($nextclass, $nextid, $sclass, $sid, $delta);
+			}
+		} elseif (is_string($objclass) && is_string($objid)) {
+			try {
+				$verbid = $this->id();
+				$sDelta = strval($delta);
+				$stmt = Verb::$pdo->prepare("
+					INSERT INTO ". Sentence::$table." (    verb_id, object_class, object_id, subject_class, subject_id,   value, created)
+											   VALUES (          ?,            ?,         ?,             ?,          ?,       ?,   NOW()) ON DUPLICATE KEY UPDATE value = value + (?)");
+				$stmt->execute(array                  (    $verbid,    $objclass,    $objid,       $sclass,       $sid, $sDelta,                                             $sDelta));
+				if ('00000' !== $stmt->errorCode()) die('Verb::associate() execute error ' . $stmt->errorCode());   // never happens, right?
+			} catch (PDOException $e) {
+				die("Verb::associate() error: {$this->name()} with a $objclass - " . $e->getMessage());
+			}
+		} else {
+			die("Verb::associate() object type error, class is a " . gettype($objclass) . " and id is a " . gettype($objid));
 		}
 	}
-	// static public function checkPdo() {
-		// if (!isset(Verb::$pdo) || !(Verb::$pdo instanceof SteinPDO)) {
-			// die('Before using the Verb class you must set Verb::$pdo.');
-		// }
-	// }
-	public function id() {
-		return $this->row['verb_id'];
-	}
-	public function name() {
-		return $this->row['name'];
+	public function set($objclass, $objid, $sclass, $sid, $setting) {   // TODO:  MergeMorphMeld with associate()
+		try {
+			$verbid = $this->id();
+			$stmt = Verb::$pdo->prepare("
+				INSERT INTO ". Sentence::$table." (    verb_id, object_class, object_id, subject_class, subject_id,    value, created)
+							               VALUES (          ?,            ?,         ?,             ?,          ?,        ?,   NOW()) ON DUPLICATE KEY UPDATE value = ?");
+			$stmt->execute(array                  (    $verbid,    $objclass,    $objid,       $sclass,       $sid, $setting,                                   $setting));
+		} catch (PDOException $e) {
+			die("Error setting {$this->name()} with a $objclass - " . $e->getMessage());
+		}
 	}
 	static public function all($opts = array()) {
 		Verb::checkPdo();
@@ -123,7 +167,7 @@ class Verb extends SteinTable {
 		return $retval;
 	}
 	
-	// Should associations() return an array of Verb instances?!?  
+	// Should associations() return an array of Verb instances?
 	// Or maybe Sentence instances!  
 	// But then those instances would not represent a SINGLE row in the table but a SET of rows.  Ah...
 	
@@ -131,8 +175,9 @@ class Verb extends SteinTable {
 		$opts += array(
 			'subject_class' => NULL,
 			'subject_id' => NULL,
+			'verb_name' => NULL,
 			/* NounClass::Verb    => $verb_id,    */   //
-			/* NounClass::User    => $user_id,    */   // pick one of these
+			/* NounClass::User    => $user_id,    */   // pick one of these to specify the object, or none of these to sum over all objects
 			/* NounClass::Comment => $comment_id, */   //
 			'order' => 'old',						// old, new, recent, often
 		);
@@ -147,6 +192,10 @@ class Verb extends SteinTable {
 			}
 		}
 		if (!is_null($opts['subject_class'])) {
+			$wheretests[] = "s.subject_class = ?";
+			$queryparameters[] = $opts['subject_class'];
+		}
+		if (!is_null($opts['verb_name'])) {
 			$wheretests[] = "s.subject_class = ?";
 			$queryparameters[] = $opts['subject_class'];
 		}
@@ -166,16 +215,16 @@ class Verb extends SteinTable {
 			$ORDERclause = "ORDER BY MAX(s.modified) DESC";
 			break;
 		case 'often':
-			$ORDERclause = "ORDER BY count DESC";
+			$ORDERclause = "ORDER BY total DESC";
 			break;
 		default:
 			die("Verb::associations() unknown order => $opts[order]");
 			break;
 		}
-		$retval = Verb::$pdo->column($query="
+		$retval = Verb::$pdo->column("
 			SELECT 
 				v.name,
-				sum(s.value) as count
+				sum(s.value) as total
 			FROM ".Sentence::$table." AS s
 			JOIN ".Verb::$table." AS v
 				USING(verb_id)
@@ -183,7 +232,6 @@ class Verb extends SteinTable {
 			GROUP BY verb_id
 			$ORDERclause
 		", $queryparameters);
-		echo "<!-- HACK-SENTENCE " . htmlspecialchars($query) . " -->";
 		return $retval;
 	}
 	public function img($opts = array()) {
@@ -251,7 +299,7 @@ class Verb extends SteinTable {
 		}
 	}
 	
-	static public function qoolbar($user_id) {   // TODO: $opts['order' => 'often', 'userid' => n
+	static public function qoolbar($user_id) {   // TODO: $opts += array('order' => 'often', 'userid' => n...wtfWasIthinkingHere )
 		$verbsIveUsed = Verb::associations(array('subject_class' => NounClass::User, 'subject_id' =>  $user_id, 'order' => 'often'));
 		$verbsEveryone = Verb::associations(array('order' => 'old', 'order' => 'often'));
 		$verbsUnusedByMe = array_diff_key($verbsEveryone, $verbsIveUsed);

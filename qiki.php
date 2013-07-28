@@ -110,9 +110,9 @@ function htmlhead($title, $opts = array()) {   // TODO: move JavaScript and CSS 
 	
 
 	if (UserQiki::$client->may(UserQikiAccess::see, NounClass::Script, $_SERVER['SCRIPT_FILENAME'])) {
-		northeastcorner(UserQiki::$client->may(UserQikiAccess::signup));
+		northeastcorner(array('signup' => UserQiki::$client->may(UserQikiAccess::signup)) + $opts);
 	} else {
-		northeastcorner(FALSE);
+		northeastcorner(array('signup' => FALSE) /* don't pass any other $opts[] */);
 		
 		// But what if we're inside UserQiki::loginForm()?  This thwarts the printing of the login form!
 		// Only way out of this dilemma is the popup login form already in the NorthEast coner.
@@ -134,27 +134,32 @@ function headersJQueryUI() {
 	\n";    // Note, no local backup for jQuery UI CSS files (there are a bunch) from Google - hoping it will work if ugly
 }
 
-function northeastcorner($signok = TRUE) {
+function northeastcorner($opts = array()) {
 	global $FORMSUBMITURL;
 
+	$opts += array(
+		'signup' => TRUE,
+		'htmlNortheast' => '',
+	)
 	?>
 		<div class="necorner">
 			<?php echo "\n";
+				echo $opts['htmlNortheast'];
 				// echo gettype(UserQiki::$client);
 				if (UserQiki::$client->alreadyLoggedIn()) {
-					echo "<div id='loglink'>";
+					echo "<span id='loglink'>";
 					echo "(<a id='logoutlink' href='" . UserQiki::$client->logouturl() . "'>logout</a> as " . UserQiki::$client->name() . ")";
-					echo "</div>\n";
+					echo "</span>\n";
 				} else {
-					echo "<div id='loglink'>";
+					echo "<span id='loglink'>";
 					echo "(<a id='loginlink' href='" . UserQiki::$client->loginurl() . "'>login</a>)";
-					echo "</div>\n";
+					echo "</span>\n";
 				}
 			?>
 			
 			<div id='loginform'>
 				<?php echo "\n";
-					if ($signok) {
+					if ($opts['signup']) {
 						?>
 							<span id='orsignup'>(or <a href='<?php echo $FORMSUBMITURL; ?>?action=signup' title="if you don't have an account">sign up</a>)</span>
 						<?php echo "\n";
@@ -164,7 +169,7 @@ function northeastcorner($signok = TRUE) {
 			</div>
 			
 			<?php echo "\n";
-				if ($signok) {
+				if ($opts['signup']) {
 					?>
 						<div id='signupform'>
 							<span id='orlogin'>(or <a href='<?php echo $FORMSUBMITURL; ?>?action=signup' title="if you already have an account">log in</a>)</span>

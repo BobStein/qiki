@@ -37,8 +37,13 @@ if (UserQiki::$client->may(UserQikiAccess::see, NounClass::Comment, 'user')) {
 	} else {
 		$minlevel = 'user';
 	}
-	$limitrows = 10;
-	$comments = Comment::byRecency(array('limit' => $limitrows, 'totalrows' => &$totalrows, 'minlevel' => $minlevel));
+	$limitrows = 30;
+	$comments = Comment::byRecency(array(
+		'limit' => $limitrows, 
+		'totalrows' => &$totalrows, 
+		'minlevel' => $minlevel,
+		'client_id' => UserQiki::$client->id(),
+	));
 	echo "<h2>Recent Comments</h2>\n";
 	echo "<table class='commentlist'>\n";
 	foreach ($comments as $comment) {

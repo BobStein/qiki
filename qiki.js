@@ -101,37 +101,43 @@ $(function() {
 	
 	// VERBBAR
 	
-	jQuery.fn.verbparts = function() {
-		verbcombo = $(this).closest(".verbcombo");
-		verbopen = verbcombo.find(".verbopen");
-		verbbar = verbcombo.find(".verbbar");
-	};
-	jQuery.fn.settleverbs = function() {
-		$(this).verbparts();
-		if (verbbar.is(':visible')) {   // when this verbbar becomes visible...
-			$(".verbbar").not(verbbar).hide();   // hide all other verbbars
-			$(".verbopen").not(verbopen).fadeverb();
-			verbopen.darkenverb();
-			verbopen.attr('title', 'hide verbs');
-		} else {
-			verbopen.fadeverb();
-			verbopen.attr('title', 'see verbs');
-		}
-	};
-	jQuery.fn.fadeverb = function() {
-		$(this).removeClass('verbdarken');   
-		$(this).addClass('verbfade');
-	};
-	jQuery.fn.darkenverb = function() {
-		$(this).removeClass('verbfade');   
-		$(this).addClass('verbdarken');
-	};
+	// jQuery.fn.verbparts = function() {
+		// verbcombo = $(this).closest(".verbcombo");
+		// verbopen = verbcombo.find(".verbopen");
+		// verbbar = verbcombo.find(".verbbar");
+	// };
+	// jQuery.fn.settleverbs = function() {
+		// $(this).verbparts();
+		// if (verbbar.is(':visible')) {   // when this verbbar becomes visible...
+			// $(".verbbar").not(verbbar).hide();   // hide all other verbbars
+			// $(".verbopen").not(verbopen).fadeverb();
+			// verbopen.darkenverb();
+			// verbopen.attr('title', 'hide verbs');
+		// } else {
+			// verbopen.fadeverb();
+			// verbopen.attr('title', 'see verbs');
+		// }
+	// };
+	// jQuery.fn.fadeverb = function() {
+		// $(this).removeClass('verbdarken');   
+		// $(this).addClass('verbfade');
+	// };
+	// jQuery.fn.darkenverb = function() {
+		// $(this).removeClass('verbfade');   
+		// $(this).addClass('verbdarken');
+	// };
 	
-	$(".verbopen").click(function() {
-		$(this).verbparts();
-		verbbar.toggle().settleverbs();
-	});
-	$(".verbbar").hide().settleverbs();
+	// $(".verbopen").click(function() {
+		// $(this).verbparts();
+		// verbbar.toggle().settleverbs();
+	// });
+	// $(".verbbar").hide().settleverbs();
+	
+	// $(".verbbar .verb-qiki").click(function() {
+		// $(this).verbparts();
+		// var $verb = $(this);
+		// usentence($verb.data('verb'), verbcombo.data('obj'), verbcombo.data('objid'), 1);
+	// });
 	
 	function usentence(verb, oclass, oid, delta) {   // create a sentence where the user (id or IP address) is the implied subject
 		$.post(FORMSUBMITURL, {
@@ -151,18 +157,30 @@ $(function() {
 		});
 	}
 	
-	$(".verbbar .verb-qiki").click(function() {
-		$(this).verbparts();
-		var $verb = $(this);
-		usentence($verb.data('verb'), verbcombo.data('obj'), verbcombo.data('objid'), 1);
-	});
+	function uset(verb, oclass, oid, setting) {   // TODO:  MMM with usentence()
+		$.post(FORMSUBMITURL, {
+			'action': 'verb_set',
+			'verbname': verb,
+			'obj': oclass,
+			'objid': oid,
+			'setting': setting,
+		}, function(responseText, textStatus, jqXHR) {
+			if ($.trim(responseText) === 'success') {
+				window.location.reload();   // TODO: instead update object model, for pure AJAX without refresh
+			} else {
+				alert('Unable to ' + verb + '-set a ' + oclass + ': ' + responseText);
+			}
+		}).fail(function(jqXHR, textStatus, errorThrown) {
+			alert('Failed to ' + verb + '-set a ' + oclass + ': ' + textStatus + ', status ' + jqXHR.status + ', response ' + setting);
+		});
+	}
 	
 	
 	
 	// Qoolbar
 	
 	$(".qoolbar .verb-qiki")	
-		.draggable({ 
+		.draggable({   // qoolbar - to - noun:  ADD RATING
 			helper: "clone", 
 			cursor: "-moz-grabbing",   // -moz-grabbing works FF 12-22, maybe used to work Chrome 28   
 			// TODO: make Chrome,IE,etc work (client sniffing??)   
@@ -170,15 +188,15 @@ $(function() {
 			// TODO: abandon jQuery-UI??
 			scroll: false,
 			start: function() {
-				$(document.body).css('background-color', '#DDDDDD');
+				associationInProgress();
 			},
 			stop: function() {
-				$(document.body).css('background-color', 'transparent');
+				associationResolved();
 			},
 		})
 	;
 	$(".qoolbar").addClass('fadeUntilHover');
-	$(".verb-object")
+	$(".noun-object")
 		.droppable({
 			accept: ".qoolbar .verb-qiki",
 			hoverClass: 'drop-hover',
@@ -188,8 +206,8 @@ $(function() {
 				verb = $source.data('verb');
 				oclass = $dest.data('object-class')
 				oid = $dest.data('object-id');
-				sclass = $source.closest('.verb-object').data('object-class');
-				sid = $source.closest('.verb-object').data('object-id');
+				sclass = $source.closest('.noun-object').data('object-class');
+				sid = $source.closest('.noun-object').data('object-id');
 				if (sclass != oclass || sid != oid) {
 					usentence(verb, oclass, oid, 1);
 				}
@@ -199,58 +217,147 @@ $(function() {
 	
 	// Unverbing a comment
 	
-	window.hackvirgin = true;
-	
 	$(".mezero")
 		// .draggable('disable') // Error: cannot call methods on draggable prior to initialization; attempted to call method 'disable'
 		.on('dragstart', function(event) { event.preventDefault(); })
 	;
 	
 	dragoptions = {
-			appendTo: 'body',
-			cursor: "-moz-grabbing",   // -moz-grabbing works FF 12-22, maybe used to work Chrome 28   TODO: make Chrome,IE,etc work (client sniffing??)   TODO: hover-hint hand   TODO: abandon jQuery-UI??
-			scroll: false,
-			start: function(event, ui) {
-				$(document.body).css('background-color', '#DDDDDD');
-			},
-			stop: function(event, ui) {
-				$(document.body).css('background-color', 'transparent');
-				$source = $(event.target);
-				verb = $source.data('verb');
-				oclass = $source.closest('.verb-object').data('object-class');
-				oid = $source.closest('.verb-object').data('object-id');
-				usentence(verb, oclass, oid, -1);
-			},
+		appendTo: 'body',
+		cursor: "-moz-grabbing",   // -moz-grabbing works FF 12-22, maybe used to work Chrome 28   TODO: make Chrome,IE,etc work (client sniffing??)   TODO: hover-hint hand   TODO: abandon jQuery-UI??
+		scroll: false,
+		start: function(event, ui) {
+			associationInProgress();
+		},
+		stop: function(event, ui) {
+			associationResolved();
+			$source = $(event.target).closest('.verb-qiki');
+			verb = $source.data('verb');
+			oclass = $source.closest('.noun-object').data('object-class');
+			oid = $source.closest('.noun-object').data('object-id');
+			usentence(verb, oclass, oid, -1);
+		},
 	};
-	$(".melast").draggable(dragoptions);
+	$(".melast").draggable(dragoptions);   // noun - to - oblivion:  SUBTRACT RATING
 	
-	dragoptions.helper = function(event, wtf_nothingwecanuse) {
-			    $source = $(this);
-				if (window.hackvirgin) {
-					window.hackvirgin = false;
-					$.getScript("http://visibone.com/javascript/utils.js", function(d,t,j) {
-						//// alert(objectDissect(firstParameterOfHelperFunction));
-						//// Output was:  object altKey(b) bubbles(b) button(n) buttons(u) cancelable(b) clientX(n) clientY(n) ctrlKey(b) currentTarget(o) data(o) 
-						////              delegateTarget(o) eventPhase(n) fromElement(u) handleObj(o) isDefaultPrevented(f) isImmediatePropagationStopped(f) 
-						////              isPropagationStopped(f) jQuery1102030696228839680484(b) metaKey(b) offsetX(u) offsetY(u) originalEvent(o) pageX(n) 
-						////              pageY(n) preventDefault(f) relatedTarget(o) result(b) screenX(n) screenY(n) shiftKey(b) stopImmediatePropagation(f) 
-						////              stopPropagation(f) target(o) timeStamp(n) toElement(u) type(s) view(o) which(n)
-						//// So the first parameter is the effing event
-					});
-					//// alert('class ' + event.target.className + ' tag ' + event.target.tagName + ' parent ' + event.target.parentNode.tagName)
-					//// Output was:  "class  tag IMG parent SPAN"
-					//// Conclusion:  event.target is the img originally clicked on, not the span.menozero we're conceptually dragging
-					//alert(typeof($source.data('postsup')) + ' ' + typeof($source.data('postsub')));   // number or undefined
+	
+	// window.hackvirgin = true;
+	// $.extend(dragoptions, {
+		// helper: function(event, wtf_nothingwecanuse) {
+	$.extend(dragoptions, {
+		               helper: 'clone',
+		bustedassbrokenhelper: function(event, wtf_nothingwecanuse) {   // http://bugs.jqueryui.com/ticket/9461
+			$source = $(this);
+			// if (window.hackvirgin) {
+				// window.hackvirgin = false;
+				// $.getScript("http://visibone.com/javascript/utils.js", function(d,t,j) {
+					//// alert(objectDissect(firstParameterOfHelperFunction));
+					//// Output was:  object altKey(b) bubbles(b) button(n) buttons(u) cancelable(b) clientX(n) clientY(n) ctrlKey(b) currentTarget(o) data(o) 
+					////              delegateTarget(o) eventPhase(n) fromElement(u) handleObj(o) isDefaultPrevented(f) isImmediatePropagationStopped(f) 
+					////              isPropagationStopped(f) jQuery1102030696228839680484(b) metaKey(b) offsetX(u) offsetY(u) originalEvent(o) pageX(n) 
+					////              pageY(n) preventDefault(f) relatedTarget(o) result(b) screenX(n) screenY(n) shiftKey(b) stopImmediatePropagation(f) 
+					////              stopPropagation(f) target(o) timeStamp(n) toElement(u) type(s) view(o) which(n)
+					//// So the first parameter is the effing event
+				// });
+				//// alert('class ' + event.target.className + ' tag ' + event.target.tagName + ' parent ' + event.target.parentNode.tagName)
+				//// Output was:  "class  tag IMG parent SPAN"
+				//// Conclusion:  event.target is the img originally clicked on, not the span.menozero we're conceptually dragging
+				//alert(typeof($source.data('postsup')) + ' ' + typeof($source.data('postsub')));   // number or undefined
+			// }
+			//if ($source.data('postsup') === '1' && $source.data('postsub') === undefined) {   // return of undefined documented: http://api.jquery.com/data/
+			if ($source.data('postsup') == 1 && $source.data('postsub') == undefined) {   // return of undefined documented: http://api.jquery.com/data/
+				return $source;   // the last man standing is not cloned, he's just dragged away
+			} else {
+				var imageWithoutTheNumbers = $source.find('img');
+				if (imageWithoutTheNumbers.length != 1) {
+					alert('DANGER, NO IMG in ' + $source[0].tagName + ' ' + $source[0].className);
 				}
-				//if ($source.data('postsup') === '1' && $source.data('postsub') === undefined) {   // return of undefined documented: http://api.jquery.com/data/
-				if ($source.data('postsup') == 1 && $source.data('postsub') == undefined) {   // return of undefined documented: http://api.jquery.com/data/
-					return $(this);   // the last man standing is not cloned, he's just dragged away
-				} else {
-					var imageWithoutTheNumbers = $source.find('img');
-					return imageWithoutTheNumbers.clone();   // 
-				}
-	};
-	$(".menozero").draggable(dragoptions);
+				return imageWithoutTheNumbers.clone();   // 
+			}
+		}
+	});
+	$(".menozero img").draggable(dragoptions);   // noun - to - oblivion:  SUBTRACT RATING
 
 	// for mouseheld event see http://stackoverflow.com/a/4081293/673991 and http://jsfiddle.net/gnarf/pZ6BM/
+	
+	
+	// Preference
+	
+	$('#showanon').change(function() {
+		var setting = $(this).is(':checked') ? '1' : '0';
+		uset('prefer', 'Preference', 1 /* new Preference('anon').id() */, setting);
+	});
+	$('#showspam').change(function() {
+		var setting = $(this).is(':checked') ? '1' : '0';
+		uset('prefer', 'Preference', 2 /* new Preference('spam').id() */, setting);
+	});
+	
+	// Selection
+	
+	$('.selectable-noun').click(function(event) {
+		event.shiftKey;
+		event.ctrlKey;
+		event.metaKey;
+		if (event.ctrlKey || event.metaKey) {
+			$(this).toggleClass('selected');
+		} else if (event.shiftKey) {
+			// TODO: range select
+		} else {
+			if ($(this).is('.selected') && $('.selected').length == 1) {
+				unselection();
+			} else {
+				unselection();
+				$(this).addClass('selected');
+			}
+		}
+		selectionWrappup();
+		event.stopPropagation();
+	});
+	$('html').click(function(event) {
+		if (event.ctrlKey || event.metaKey) {
+		} else if (event.shiftKey) {
+		} else {
+			unselection();
+		}
+		selectionWrappup();
+	});
+	associationResolved();
+	$('.qoolbar .verb-qiki').click(function() {
+		if ($(this).closest('.qoolbar').is('.raiseVerbs')) {
+			verb = $(this).data('verb');
+			oclasses = [];
+			oids = [];
+			$('.selected').each(function() {
+				oclasses.push($(this).data('object-class'));
+				oids.push($(this).data('object-id'));
+			});
+			usentence(verb, oclasses, oids, 1);
+		} else {
+			// Mean something else?  Elaborate on tool?
+		}
+	});
 });
+
+
+function associationResolved() {   // indicating normalcy
+	$(document.body).css('background-color', '#F8F8F8');   // TODO: make a class instead
+}
+
+function associationInProgress() {   // indicating either (1) nouns are selected, or (2) a verb is dragging
+	$(document.body).css('background-color', '#F0F0F0');
+}
+function unselection() {
+	$('.selectable-noun').removeClass('selected');
+}
+function selectionWrappup() {
+	numSelected = $('.selected').length;
+	if (numSelected == 0) {
+		associationResolved();
+		$(".qoolbar").addClass('fadeUntilHover');
+		$(".qoolbar").removeClass('raiseVerbs');
+	} else {
+		associationInProgress();
+		$(".qoolbar").removeClass('fadeUntilHover');
+		$(".qoolbar").addClass('raiseVerbs');
+	}
+}

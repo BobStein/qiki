@@ -81,8 +81,10 @@ class Comment extends SteinTable {
 			'minlevel' => 'anon',	// 'anon' or 'user' -- minimum level of comment author to include
 			'kontext' => '',        // e.g. 'php/strlen'
 			'totalrows' => &$countRowsRegardlessOfLimit,
-			'scorer' => '',
-			'minscore' => 0,
+			'scorer' => NULL,
+			'minscore' => NULL,
+			'maxscore' => NULL,
+			'client_id' => NULL,   // e.g. UserQiki::$client->id() for the scoring context
 		);
 		$vars = array();
 		$wheres = array();
@@ -94,7 +96,7 @@ class Comment extends SteinTable {
 			$wheres[] = "qontributor RLIKE '$ALLDIGITS'"; 
 			break;  
 		default: 
-			die("Comment::byRecency(array('minlevel'=>'$opts[minlevel]'))");
+			die("Comment::fetchem(array('minlevel'=>'$opts[minlevel]'))");
 		}
 		if ($opts['kontext'] == '') {
 			
@@ -122,10 +124,15 @@ class Comment extends SteinTable {
 			$LIMITclause
 		", $vars);
 		$opts['totalrows'] = intval(Comment::$pdo->cell("SELECT FOUND_ROWS()"));
-		if ($opts['scorer'] != '') {
+		if (!is_null($opts['scorer'])) {
 			$scorer = new Scorer($opts['scorer']);
 			foreach ($ids as $k => $id) {
-				if ($scorer->score(array('subject_class' => NounClass::Comment)) < $opts['minscore']) {
+				$score = $scorer->score(array(
+					NounClass::Comment => $id, 
+					'client_id' => $opts['client_id'],
+				));
+				if ((!is_null($opts['minscore']) && $score < $opts['minscore'])
+				 || (!is_null($opts['maxscore']) && $score > $opts['maxscore'])) {
 					unset($ids[$k]);
 				}
 			}
