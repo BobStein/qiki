@@ -16,7 +16,7 @@ interface NounClass {   // for the Sentence.object_class and Sentence.subject_cl
 	const User       = 'User';		// TODO: how to handle new User versus new UserQiki?
 //	const Sentence					// (a sentence can refer to another sentence, e.g. for 3 or more nouns)
 // 	const URL						// nonnumeric identification!
-// 	const Qiki						// nonnumeric identification!
+ 	const Qiki		 = 'Qiki';		// nonnumeric identification!
  	const IPAddress	 = 'IPAddress';	// and store the ID using ip2long()
 //	const Server or Site			// as in, a satellite qiki.somewheresite.com
 //	const Scorer
@@ -26,7 +26,9 @@ interface NounClass {   // for the Sentence.object_class and Sentence.subject_cl
 								    // Instead: qiki/qiki/software/xxxxx.php?  Or let a sentence make that association?
 //	const Unused					// for sentences with 1 noun?
 //	const Language					// (human)
-//	const Proposal					// a call for human action, e.g. development, censure, mediation, etc.
+//	const Proposal					// a call for human action, e.g. development, censure, mediation, etc., including bounties and anti-bounties (donations if it fails)
+//	const Time						// 32 bit TIMESTAMP
+//	const AideMemoire				// VisiBone cheatsheet, example2 or syntax3
 }
 // Note these names must be secure, as they are not protected from injection attack (no check made whether they have ' in them).
 

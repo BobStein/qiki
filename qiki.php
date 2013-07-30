@@ -10,7 +10,7 @@
 define('DEBUG', TRUE);   // display PHP errors, jquery.js; FALSE for jquery.min.js
 define('JQUERY_MIN', TRUE);   // minimize jQuery source
 define('JQueryVersion', '1.10.2');
-define('JQueryUIversion', '1.10.2');   // UI 1.10.3 has draggable bug http://bugs.jqueryui.com/ticket/9315
+define('JQueryUIversion', '1.10.2');   // UI 1.10.3 has draggable bug   http://bugs.jqueryui.com/ticket/9315   http://jqueryui.com/changelog/1.10.3/
 
 $DOMAIN = "qiki.info";
 $FORMSUBMITURL = $_SERVER['PHP_SELF'];
@@ -77,9 +77,9 @@ function htmlhead($title, $opts = array()) {   // TODO: move JavaScript and CSS 
 		<head>
 			<title><?php echo $title; ?></title>
 			<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
-
-			<script src="//ajax.googleapis.com/ajax/libs/jquery/<?php echo JQueryVersion; ?>/jquery<?php echo DOTMIN; ?>.js" type="text/javascript"></script>
-			<script type="text/javascript">window.jQuery || document.write("<"+"script src='//tool.qiki.info/js/jquery-1.10.2<?php echo JQueryVersion . DOTMIN; ?>.js' type='text/javascript'><\/script>\n")</script>
+			<?php echo "\n";
+				echo headersJQuery();
+			?>
 			<!-- script src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script -->
 			<script type="text/javascript">
 				FORMSUBMITURL = '<?php echo addslashes($FORMSUBMITURL); ?>';
@@ -133,11 +133,27 @@ function htmlhead($title, $opts = array()) {   // TODO: move JavaScript and CSS 
 	}
 }
 
+function headersJQuery() {
+	return "
+			<script src='//ajax.googleapis.com/ajax/libs/jquery/" . JQueryVersion . "/jquery" . DOTMIN . ".js' type='text/javascript'></script>
+			<script type='text/javascript'>
+				'jQuery' in window || document.write(
+					\"<\"+\"script src='//tool.qiki.info/js/jquery-1.10.2" . JQueryVersion . DOTMIN . ".js' type='text/javascript'>\"
+					+\"<\\/script>\\n\"
+				);
+			</script>
+	\n";
+}
 function headersJQueryUI() {
 	return "
-			<script src='//ajax.googleapis.com/ajax/libs/jqueryui/".JQueryUIversion."/jquery-ui".DOTMIN.".js' type='text/javascript'></script>
-			<script type='text/javascript'>window.jQuery.ui || document.write(\"<\"+\"script src='//tool.qiki.info/js/jquery-ui-".JQueryUIversion . DOTMIN.".js' type='text/javascript'><\/script>\\n\")</script>
-			<link href='//ajax.googleapis.com/ajax/libs/jqueryui/".JQueryUIversion."/themes/start/jquery-ui".DOTMIN.".css' type='text/css' rel='stylesheet' />
+			<script src='//ajax.googleapis.com/ajax/libs/jqueryui/" . JQueryUIversion . "/jquery-ui" . DOTMIN . ".js' type='text/javascript'></script>
+			<script type='text/javascript'>
+				'ui' in window.jQuery || document.write(
+					\"<\"+\"script src='//tool.qiki.info/js/jquery-ui-" . JQueryUIversion . DOTMIN . ".js' type='text/javascript'>\"
+					+\"<\\/script>\\n\"
+				);
+			</script>
+			<link href='//ajax.googleapis.com/ajax/libs/jqueryui/" . JQueryUIversion . "/themes/start/jquery-ui" . DOTMIN . ".css' type='text/css' rel='stylesheet' />
 	\n";    // Note, no local backup for jQuery UI CSS files (there are a bunch) from Google - hoping it will work if ugly
 }
 
@@ -179,7 +195,7 @@ function northeastcorner($opts = array()) {
 				if ($opts['signup']) {
 					?>
 						<div id='signupform'>
-							<span id='orlogin'>(or <a href='<?php echo $FORMSUBMITURL; ?>?action=signup' title="if you already have an account">log in</a>)</span>
+							<span id='orlogin'>(or <a href='<?php echo $FORMSUBMITURL; ?>?action=login' title="if you already have an account">log in</a>)</span>
 							<?php echo UserQiki::$client->barebonesSignupForm(); ?>
 						</div>
 					<?php echo "\n";
@@ -218,7 +234,7 @@ function qontext() {  // Human readable context, without the slash
 
 function kontext() {  // Machine usable context, with the slash
 	$retval = $_SERVER['REQUEST_URI'];
-	$retval = urldecode($retval);   // TODO: should this happen??  It turns + into space!  Why is urldecode() called here?  For %NN symbols?
+	$retval = rawurldecode($retval);   // DONE:  does NOT turn + into space!  Not urldecode().  Does decode %NN symbols.
 	return $retval;
 }
 

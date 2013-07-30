@@ -23,6 +23,8 @@ require_once('../toolqiki/php/parameter.php');
 
  
 if (isset($_REQUEST['action'])) {
+
+	header("HTTP/1.1 200 OK");   // not apparently necessary, but overriding the 404 for actions
 	switch ($_REQUEST['action']) {
 	
 	case 'verb_associate':
@@ -77,10 +79,17 @@ if (isset($_REQUEST['action'])) {
 		$comment = Comment::insert($qomment, $qontributor, $kontext);
 		echo "success";
 		exit;
-	case 'newqontext':
+	case 'newqontext':   // no longer used, the ability retype the qiki e.g. "php/strlen" without having to edit the address bar
 		$shouldqontext = parameter('shouldqontext');
 		header('Location: ' . rawurlencode($shouldqontext));  // http://stackoverflow.com/questions/996139/php-urlencode-vs-rawurlencode
 		header("Cache-Control: no-cache, must-revalidate");
+		exit;
+	case 'sleepingtool':
+		$qiki = parameter('qiki');
+		if (!UserQiki::$client->may(UserQikiAccess::see, NounClass::Qiki, $qiki)) {
+			die("You aren't allowed to see details about the qiki '$qiki'.");
+		}
+		sleepingtool($qiki);
 		exit;
 	default:
 		die("Unknown action '$_REQUEST[action]'.");
@@ -330,4 +339,34 @@ htmlfoot();
 	// echo "\t</span>\n";
 // }
 
+function sleepingtool($qiki) {
+	if (UserQiki::$client->may(UserQikiAccess::see, NounClass::Comment, 'anon')) {
+		$minlevel = 'anon';
+		$whichcomments = "Comments";
+	} else {
+		$minlevel = 'user';
+		$whichcomments = "Comments by users";
+	}
+	$limitrows = 10;
+	$comments = Comment::byKontext($qiki, array(
+		'limit' => $limitrows, 
+		'totalrows' => &$totalrows, 
+		'minlevel' => $minlevel,
+		'client_id' => UserQiki::$client->id(),
+	));
+
+	$verbTool = new Verb('tool');
+	echo "\t<span class='nebox'>\n";
+		echo "\t\t<div class='sleepingtool'>\n";
+			echo "\t\t" . $verbTool->img(array('title' => 'see verbs', 'class' => 'toolwaker')) . "\n";
+		echo "\t\t</div>\n";
+		echo "\t\t<div class='sleepercaption'>\n";
+			if ($totalrows != 0) {
+				echo "\t\t$totalrows comments\n";
+			} else {
+				echo "\t\t(no comments yet)\n";
+			}
+		echo "\t\t</div>\n";
+	echo "\t</span>\n";
+}
 ?>

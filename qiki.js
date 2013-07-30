@@ -179,7 +179,7 @@ $(function() {
 	
 	// Qoolbar
 	
-	$(".qoolbar .verb-qiki")	
+	 $.ui && $(".qoolbar .verb-qiki")	
 		.draggable({   // qoolbar - to - noun:  ADD RATING
 			helper: "clone", 
 			cursor: "-moz-grabbing",   // -moz-grabbing works FF 12-22, maybe used to work Chrome 28   
@@ -196,7 +196,7 @@ $(function() {
 		})
 	;
 	$(".qoolbar").addClass('fadeUntilHover');
-	$(".noun-object")
+	$.ui && $(".noun-object")
 		.droppable({
 			accept: ".qoolbar .verb-qiki",
 			hoverClass: 'drop-hover',
@@ -238,7 +238,7 @@ $(function() {
 			usentence(verb, oclass, oid, -1);
 		},
 	};
-	$(".melast").draggable(dragoptions);   // noun - to - oblivion:  SUBTRACT RATING
+	$.ui && $(".melast").draggable(dragoptions);   // noun - to - oblivion:  SUBTRACT RATING
 	
 	
 	// window.hackvirgin = true;
@@ -276,7 +276,7 @@ $(function() {
 			}
 		}
 	});
-	$(".menozero img").draggable(dragoptions);   // noun - to - oblivion:  SUBTRACT RATING
+	$.ui && $(".menozero img").draggable(dragoptions);   // noun - to - oblivion:  SUBTRACT RATING
 
 	// for mouseheld event see http://stackoverflow.com/a/4081293/673991 and http://jsfiddle.net/gnarf/pZ6BM/
 	

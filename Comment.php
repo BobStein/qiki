@@ -117,7 +117,8 @@ class Comment extends SteinTable {
 			$vars[] = $opts['limit'];
 		}
 		$ids = Comment::$pdo->column("
-			SELECT SQL_CALC_FOUND_ROWS comment_id 
+			SELECT SQL_CALC_FOUND_ROWS 
+				comment_id 
 			FROM ".Comment::$table."
 			$WHEREclause
 			ORDER BY created DESC
