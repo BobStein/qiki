@@ -27,56 +27,70 @@ if (isset($_REQUEST['action'])) {
 	header("HTTP/1.1 200 OK");   // not apparently necessary, but overriding the 404 for actions
 	switch ($_REQUEST['action']) {
 	
-	case 'verb_associate':
+	case 'verb_state':
 		$verbname = parameter('verbname');
-		if (!UserQiki::$client->may(UserQikiAccess::create, NounClass::Verb, $verbname)) {
-			die("You aren't allowed to use the '$verbname' verb.");
+		if (!UserQiki::client()->may(UserQikiAccess::create, NounClass::Verb, $verbname)) {
+			die("You aren't allowed to use the verb '$verbname'");
 		}
-		$obj = parameter('obj');
+		$objclass = parameter('objclass');
 		$objid = parameter('objid');
-		$delta = parameter('delta');
-		if (UserQiki::$client->alreadyLoggedIn()) {   // TODO: !$client->isanon()?
-			$subject_class = NounClass::User;
-			$subject_id = UserQiki::$client->id();
-		} else {
-			$subject_class = NounClass::IPAddress;
-			$subject_id = ip2long($_SERVER['REMOTE_ADDR']);
-		}
+		$value = parameter('value');
+		$op = parameter('op');
 		$verb = new Verb($verbname);
-		$verb->associate($obj, $objid, $subject_class, $subject_id, $delta);
+		if (UserQiki::client()->alreadyLoggedIn()) {   // TODO: !client()->isAnon()?
+			$verb->state(array(
+				'subject' => new Noun(NounClass::User, UserQiki::client()->id()),
+				'object'  => Noun::factory($objclass, $objid),
+				'value' => $value,
+				'op' => $op,
+			));
+			// $subject_class = NounClass::User;
+			// $subject_id = UserQiki::client()->id();
+		} else {
+			$verb->state(array(
+				'subject' => new Noun(NounClass::IPAddress, strval(ip2long($_SERVER['REMOTE_ADDR']))),
+				'object'  => Noun::factory($objclass, $objid),
+				'value' => $value,
+				'op' => $op,
+			));
+			// $subject_class = NounClass::IPAddress;
+			// $subject_id = ip2long($_SERVER['REMOTE_ADDR']);
+		}
+		// $verb->associate($objclass, $objid, $subject_class, $subject_id, $delta);    
 		echo "success";
 		exit;
-	case 'verb_set':   // TODO:  MMM with verb_associate
-		$verbname = parameter('verbname');
-		if (!UserQiki::$client->may(UserQikiAccess::create, NounClass::Verb, $verbname)) {
-			die("You aren't allowed to set a '$verbname' verb.");
-		}
-		$obj = parameter('obj');
-		$objid = parameter('objid');
-		$setting = parameter('setting');
-		if (UserQiki::$client->alreadyLoggedIn()) {   // TODO: !$client->isanon()?
-			$subject_class = NounClass::User;
-			$subject_id = UserQiki::$client->id();
-		} else {
-			$subject_class = NounClass::IPAddress;
-			$subject_id = ip2long($_SERVER['REMOTE_ADDR']);
-		}
-		$verb = new Verb($verbname);
-		$verb->set($obj, $objid, $subject_class, $subject_id, $setting);
-		echo "success";
-		exit;
+	// case 'verb_set':   // TODO:  MMM with verb_associate
+		// $verbname = parameter('verbname');
+		// if (!UserQiki::client()->may(UserQikiAccess::create, NounClass::Verb, $verbname)) {
+			// die("You aren't allowed to set a '$verbname' verb.");
+		// }
+		// $objclass = parameter('objclass');
+		// $objid = parameter('objid');
+		// $setting = parameter('setting');
+		// if (UserQiki::client()->alreadyLoggedIn()) {   // TODO: !client()->isAnon()?
+			// $subject_class = NounClass::User;
+			// $subject_id = UserQiki::client()->id();
+		// } else {
+			// $subject_class = NounClass::IPAddress;
+			// $subject_id = ip2long($_SERVER['REMOTE_ADDR']);
+		// }
+		// $verb = new Verb($verbname);
+		// $verb->set($objclass, $objid, $subject_class, $subject_id, $setting);
+		// echo "success";
+		// exit;
 	case 'newcomment':
 		$qomment = parameter('qomment');
 		$kontext = parameter('kontext');
-		if (!UserQiki::$client->may(UserQikiAccess::create, NounClass::Comment)) {
+		if (!UserQiki::client()->may(UserQikiAccess::create, NounClass::Comment)) {
 			die("You don't have access to write comments for this qiki.");
 		}
-		if (UserQiki::$client->alreadyLoggedIn()) {
-			$qontributor = UserQiki::$client->id();
+		if (UserQiki::client()->alreadyLoggedIn()) {
+			$qontributor = UserQiki::client()->id();
 		} else {
 			$qontributor = $_SERVER['REMOTE_ADDR'];
 		}
-		$comment = Comment::insert($qomment, $qontributor, $kontext);
+		Comment::insert('comment', $qomment, $qontributor, $kontext);
+		// TODO:  support comments on other verbs
 		echo "success";
 		exit;
 	case 'newqontext':   // no longer used, the ability retype the qiki e.g. "php/strlen" without having to edit the address bar
@@ -86,8 +100,8 @@ if (isset($_REQUEST['action'])) {
 		exit;
 	case 'sleepingtool':
 		$qiki = parameter('qiki');
-		if (!UserQiki::$client->may(UserQikiAccess::see, NounClass::Qiki, $qiki)) {
-			die("You aren't allowed to see details about the qiki '$qiki'.");
+		if (!UserQiki::client()->may(UserQikiAccess::see, NounClass::QikiQuestion, $qiki)) {
+			exit;  // die("You aren't allowed to see details about the qiki '$qiki'.");
 		}
 		sleepingtool($qiki);
 		exit;
@@ -96,7 +110,7 @@ if (isset($_REQUEST['action'])) {
 	}
 }
 
-if (UserQiki::$client->may(UserQikiAccess::see, NounClass::Comment, 'anon')) {
+if (UserQiki::client()->may(UserQikiAccess::see, NounClass::Comment, 'anon')) {
 	$minlevel = 'anon';
 	$whichcomments = "Comments";
 } else {
@@ -110,10 +124,10 @@ $comments = Comment::byKontext(kontext(), array(
 	'minlevel' => $minlevel,
 	// 'scorer' => 'spammy',
 	// 'maxscore' => 0.5,
-	'client_id' => UserQiki::$client->id(),
+	'client_id' => UserQiki::client()->id(),
 ));
 
-if (UserQiki::$client->isanon()) {
+if (UserQiki::client()->isAnon()) {
 	$northeast = "
 		<span id='prefs' class='disabled-like'>
 			<label title='Some users can see anonymous comments.'><input id='showanon' type='checkbox' disabled='disabled' />anon</label>
@@ -121,10 +135,10 @@ if (UserQiki::$client->isanon()) {
 		</span>
 	\n";
 } else {
-	// $prefs = Preference::fromUser(UserQiki::$client->id());
+	// $prefs = Preference::fromUser(UserQiki::client()->id());
 	// var_export($prefs);
-	$anonchecked = UserQiki::$client->preference('anonymous') ? "checked='checked'" : '';
-	$spamchecked = UserQiki::$client->preference('spam')      ? "checked='checked'" : '';
+	$anonchecked = UserQiki::client()->preference('anonymous') ? "checked='checked'" : '';
+	$spamchecked = UserQiki::client()->preference('spam')      ? "checked='checked'" : '';
 	$northeast = "
 		<span id='prefs'>
 			<label title='Show anonymous comments?'  ><input id='showanon' type='checkbox' autocomplete='off' $anonchecked />anon</label>
@@ -146,8 +160,8 @@ htmlhead(htmlspecialchars(qontext()) . ' - qiki', array(
 	'htmlNortheast' => $northeast
 ));
 
-$linkToQiki = qikilinkWhole(qontext());
-if (UserQiki::$client->may(UserQikiAccess::create, NounClass::Comment)) {
+$linkToQiki = qikilinkWhole(kontext());
+if (UserQiki::client()->may(UserQikiAccess::create, NounClass::Comment)) {
 	?>
 		<form class='contextform' action='<?php echo $FORMSUBMITURL; ?>' method='post'>
 			<input type='hidden' name='action' value='newqontext' />
@@ -170,7 +184,7 @@ if (UserQiki::$client->may(UserQikiAccess::create, NounClass::Comment)) {
 					// TODO:  appear simply boldface like a wiki article self-reference?   As specified at http://en.wikipedia.org/wiki/Help:Link#Wikilinks
 					// TODO:  clicking on it allows you to change it?
 					// TODO:  ... otherwise dismantle the form and action=newqontext etc.
-					echo htmlspecialchars(qontext()); 
+					// echo htmlspecialchars(qontext()); 
 				?>
 				qiki
 				look like?
@@ -191,13 +205,13 @@ if (UserQiki::$client->may(UserQikiAccess::create, NounClass::Comment)) {
 	echo "<p>(The qiki $linkToQiki is not currently taking comments.)</p>\n";
 }
 
-// if (UserQiki::$client->isSuper() || UserQiki::$client->isGuest()) {
-if (UserQiki::$client->may(UserQikiAccess::create, NounClass::Verb)) {
-	echo Verb::qoolbar(UserQiki::$client->id());
+// if (UserQiki::client()->isSuper() || UserQiki::client()->isGuest()) {
+if (UserQiki::client()->may(UserQikiAccess::create, NounClass::Verb)) {
+	echo Verb::qoolbar(UserQiki::client()->id());
 }
 
-if (UserQiki::$client->isSuper()) {
-	$verbsMe = Verb::associations(array('subject_class' => NounClass::User, 'subject_id' => UserQiki::$client->id()));
+if (UserQiki::client()->isSuper()) {
+	$verbsMe = Verb::associations(array('subject_class' => NounClass::User, 'subject_id' => UserQiki::client()->id()));
 	$verbsEveryone = Verb::associations();
 
 	$verbsUsedByOthers = array_diff_assoc($verbsEveryone, $verbsMe);   // aka verbs used by somebody other than me, that I'm not the only one who uses them
@@ -224,12 +238,12 @@ $spammy = new Scorer('spammy');
 foreach ($comments as $comment_id => $comment) {
 
 	$spamscore = $spammy->score(array(
-		NounClass::Comment => $comment->id(), 
-		'client_id' => UserQiki::$client->id(),
+		NounClass::Sentence => $comment->id(), 
+		'client_id' => UserQiki::client()->id(),
 	));
 	
-	if ($comment->whotype() != 'user' && !UserQiki::$client->preference('anonymous')) continue;
-	if ($spamscore > 0.0              && !UserQiki::$client->preference('spam'     )) continue;
+	if ($comment->whotype() != 'user' && !UserQiki::client()->preference('anonymous')) continue;
+	if ($spamscore > 0.0              && !UserQiki::client()->preference('spam'     )) continue;
 	
 	if ($spamscore <= 0.0)                                    { $spamclass = 'spamclass-0';    }
 	elseif           (0.0 < $spamscore 
@@ -238,7 +252,7 @@ foreach ($comments as $comment_id => $comment) {
 	
 	echo "<span "
 		."class='noun-object selectable-noun $spamclass' "
-		."data-object-class='" . NounClass::Comment . "' "
+		."data-object-class='" . NounClass::Sentence . "' "
 		."data-object-id='$comment_id' "
 		."data-spamscore='$spamscore' "
 	.">";
@@ -251,8 +265,8 @@ foreach ($comments as $comment_id => $comment) {
 			echo $comment->ago();
 			echo ")";
 		echo "</span>\n";
-		$assocs   = Verb::associations(array(NounClass::Comment => $comment->id()));
-		$assocsMe = Verb::associations(array(NounClass::Comment => $comment->id(), 'subject_id' => UserQiki::$client->id()));
+		$assocs   = Verb::associations(array(NounClass::Sentence => $comment->id()));
+		$assocsMe = Verb::associations(array(NounClass::Sentence => $comment->id(), 'subject_id' => UserQiki::client()->id()));
 		if ($assocs != array()) {
 			foreach($assocs as $verbname => $value) {
 				$value = doubleval($value);
@@ -306,12 +320,12 @@ foreach ($comments as $comment_id => $comment) {
 					$verb = new Verb($verbname);
 					echo $verb->img(array('tooltip' => $tooltip, 'postsup' => $numberMe, 'postsub' => $numberTotal, 'class' => $classes));   
 							
-					// TODO:  encapsulate somehow, e.g. 'subject_id' => UserQiki::$client->id(), 'showValues' => TRUE));
+					// TODO:  encapsulate somehow, e.g. 'subject_id' => UserQiki::client()->id(), 'showValues' => TRUE));
 				}
 			}
 		}
 		if ($SHOW_VERBBAR) {
-			verbexpander(NounClass::Comment, $comment->id());
+			verbexpander(NounClass::Sentence, $comment->id());
 		}
 		
 	echo "</span>";
@@ -325,22 +339,23 @@ if ($numRowsNotShown > 0) {
 
 htmlfoot();
 
-// function verbexpander($obj, $objid) {   // VERBBAR
-	// echo "\t<span class='verbcombo' data-obj='$obj' data-objid='$objid'>\n";
-		// $verbTool = new Verb('tool');
-		// echo "\t\t" . $verbTool->img(array('title' => 'see verbs', 'class' => 'verbopen')) . "\n";
-		// echo "\t\t<span class='verbbar'>\n";
-			// foreach(Verb::all() as $verbEach) {
-				// if ($verbEach->id() != $verbTool->id()) {
-					// echo "\t\t\t" . $verbEach->img() . "\n";
-				// }
-			// }
-		// echo "\t\t</span>\n";
-	// echo "\t</span>\n";
-// }
+		function verbexpander($obj, $objid) {   // VERBBAR - still using?
+			echo "\t<span class='verbcombo' data-obj='$obj' data-objid='$objid'>\n";
+				$verbTool = new Verb('tool');
+				echo "\t\t" . $verbTool->img(array('title' => 'see verbs', 'class' => 'verbopen')) . "\n";
+				echo "\t\t<span class='verbbar'>\n";
+					foreach(Verb::all() as $verbEach) {
+						if ($verbEach->id() != $verbTool->id()) {
+							echo "\t\t\t" . $verbEach->img() . "\n";
+						}
+					}
+				echo "\t\t</span>\n";
+			echo "\t</span>\n";
+		}
+
 
 function sleepingtool($qiki) {
-	if (UserQiki::$client->may(UserQikiAccess::see, NounClass::Comment, 'anon')) {
+	if (UserQiki::client()->may(UserQikiAccess::see, NounClass::Comment, 'anon')) {
 		$minlevel = 'anon';
 		$whichcomments = "Comments";
 	} else {
@@ -352,7 +367,7 @@ function sleepingtool($qiki) {
 		'limit' => $limitrows, 
 		'totalrows' => &$totalrows, 
 		'minlevel' => $minlevel,
-		'client_id' => UserQiki::$client->id(),
+		'client_id' => UserQiki::client()->id(),
 	));
 
 	$verbTool = new Verb('tool');

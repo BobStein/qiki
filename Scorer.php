@@ -16,14 +16,16 @@ class Scorer {
 	}
 	public function score($opts=array()) {
 		$opts += array(
-			/* NounClass::Verb    => $verb_id,    */   //
-			/* NounClass::User    => $user_id,    */   // pick one of these to specify the object, or none of these to sum over all objects
-			/* NounClass::Comment => $comment_id, */   //
-			'client_id' => NULL,   // e.g. UserQiki::$client->id()
+			/* NounClass::Verb     => $verb_id,    */   //
+			/* NounClass::User     => $user_id,    */   // pick one of these to specify the object, or none of these to sum over all objects
+			/* NounClass::Sentence => $comment_id, */   //
+			'client_id' => NULL,   // e.g. UserQiki::client()->id()
 		);
 		switch ($this->name) {
 		
 		case 'spammy':	
+			$verb = new Verb('spam');
+			
 			// TODO: MergeMorphMeld with Verb::associations() or something
 			$wheretests = array();
 			$queryparameters = array();
@@ -35,12 +37,11 @@ class Scorer {
 					break;
 				}
 			}
-			$verb = new Verb('spam');
 			$wheretests[] = "s.verb_id = ?";
 			$queryparameters[] = $verb->id();
 			$wheretests[] = "s.subject_class = ?";
 			$queryparameters[] = NounClass::User;   // Ignores ratings from anonymous users -- but still shows the icon!  
-			$WHEREclause = $wheretests == array() ? '' : "WHERE " . join(' AND ', $wheretests);
+			$WHEREclause = empty($wheretests) ? '' : "WHERE " . join(' AND ', $wheretests);
 			$pdo = Verb::pdo();
 			$uservotes = $pdo->column("
 				SELECT

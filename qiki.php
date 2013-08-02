@@ -55,7 +55,7 @@ function QikiConnectLogin() {  // Connects MySQL and determines user login statu
 	UserQiki::clientlogin();
 }
 QikiConnectLogin();
-if (!UserQiki::$client->may(UserQikiAccess::see)) {
+if (!UserQiki::client()->may(UserQikiAccess::see)) {
 	die("<p>qiki.info is temporarily down.</p>\n");
 }
 
@@ -69,7 +69,7 @@ function htmlhead($title, $opts = array()) {   // TODO: move JavaScript and CSS 
 		'cssphp' => array(),			// for CSS that has PHP in it, e.g. array("/home/visibone/public_html/utils.css.php")
 		'js' => array(),				// extra JavaScript, e.g. array("//ajax.googleapis.com...")
 	);
-	QikiConnectLogin();   // need to call here so UserQiki::$client is available, in case htmlhead() is called above including qiki.php, taking advantage of forward-reference
+	QikiConnectLogin();   // need to call here so UserQiki::client() is available, in case htmlhead() is called above including qiki.php, taking advantage of forward-reference
 
 	?>
 		<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
@@ -116,15 +116,15 @@ function htmlhead($title, $opts = array()) {   // TODO: move JavaScript and CSS 
 	
 	
 
-	if (UserQiki::$client->may(UserQikiAccess::see, NounClass::Script, $_SERVER['SCRIPT_FILENAME'])) {
-		northeastcorner(array('signup' => UserQiki::$client->may(UserQikiAccess::signup)) + $opts);
+	if (UserQiki::client()->may(UserQikiAccess::see, NounClass::Script, $_SERVER['SCRIPT_FILENAME'])) {
+		northeastcorner(array('signup' => UserQiki::client()->may(UserQikiAccess::signup)) + $opts);
 	} else {
 		northeastcorner(array('signup' => FALSE) /* don't pass any other $opts[] */);
 		
 		// But what if we're inside UserQiki::loginForm()?  This thwarts the printing of the login form!
 		// Only way out of this dilemma is the popup login form already in the NorthEast coner.
 		// Though login errors (e.g. wrong password) don't show login errors, they just show the message here.
-		// so we could add to the above if-clause && UserQiki::$client->status() isn't anonymous or login etc etc lots of ugly insider knowledge of class User...
+		// so we could add to the above if-clause && UserQiki::client()->status() isn't anonymous or login etc etc lots of ugly insider knowledge of class User...
 		// This will come back to bite.
 		
 		echo "You don't have access to this page.\n";
@@ -168,14 +168,14 @@ function northeastcorner($opts = array()) {
 		<div class="necorner">
 			<?php echo "\n";
 				echo $opts['htmlNortheast'];
-				// echo gettype(UserQiki::$client);
-				if (UserQiki::$client->alreadyLoggedIn()) {
+				// echo gettype(UserQiki::client());
+				if (UserQiki::client()->alreadyLoggedIn()) {
 					echo "<span id='loglink'>";
-					echo "(<a id='logoutlink' href='" . UserQiki::$client->logouturl() . "'>logout</a> as " . UserQiki::$client->name() . ")";
+					echo "(<a id='logoutlink' href='" . UserQiki::client()->logouturl() . "'>logout</a> as " . UserQiki::client()->name() . ")";
 					echo "</span>\n";
 				} else {
 					echo "<span id='loglink'>";
-					echo "(<a id='loginlink' href='" . UserQiki::$client->loginurl() . "'>login</a>)";
+					echo "(<a id='loginlink' href='" . UserQiki::client()->loginurl() . "'>login</a>)";
 					echo "</span>\n";
 				}
 			?>
@@ -188,7 +188,7 @@ function northeastcorner($opts = array()) {
 						<?php echo "\n";
 					}
 				?>
-				<?php echo "\n" . UserQiki::$client->barebonesLoginForm(); ?>
+				<?php echo "\n" . UserQiki::client()->barebonesLoginForm(); ?>
 			</div>
 			
 			<?php echo "\n";
@@ -196,7 +196,7 @@ function northeastcorner($opts = array()) {
 					?>
 						<div id='signupform'>
 							<span id='orlogin'>(or <a href='<?php echo $FORMSUBMITURL; ?>?action=login' title="if you already have an account">log in</a>)</span>
-							<?php echo UserQiki::$client->barebonesSignupForm(); ?>
+							<?php echo UserQiki::client()->barebonesSignupForm(); ?>
 						</div>
 					<?php echo "\n";
 				}
@@ -209,7 +209,7 @@ function htmlfoot() {
 	echo "<br />\n";
 	echo footerlogo();
 
-	if (UserQiki::$client->isSuper()) {   // TODO: call $client->may() instead?
+	if (UserQiki::client()->isSuper()) {   // TODO: call client()->may() instead?
 		echo "<!-- \n";
 		echo "\$_SERVER[]:\n"; var_export($_SERVER);
 		echo "\$_REQUEST[]:\n"; var_export($_REQUEST);
@@ -226,14 +226,14 @@ function htmlfoot() {
 	<?php echo "\n";
 }
 
-function qontext() {  // Human readable context, without the slash
+function qontext() {  // Human readable context, without the initial slash
 	$retval = kontext();
-	$retval = preg_replace('#^/#', '', $retval);
 	return $retval;
 }
 
 function kontext() {  // Machine usable context, with the slash
 	$retval = $_SERVER['REQUEST_URI'];
+	$retval = preg_replace('#^/#', '', $retval, 1);  // Only remove one initial slash, the one unavoidable in the URL, this is the only place this happens
 	$retval = rawurldecode($retval);   // DONE:  does NOT turn + into space!  Not urldecode().  Does decode %NN symbols.
 	return $retval;
 }
@@ -261,4 +261,16 @@ function qikilogo() {
 				."Ki"
 			."</span>"
 		."</a>";
+}
+
+function assssert($test, $message = NULL) {
+	if (!isset($message)) {
+		$message = 'ASSERT FAILURE';
+	}
+	if (!$test) {
+		echo "\nThe upside-down stack:\n";
+		debug_print_backtrace();
+		echo "\n";
+		die($message);
+	}
 }

@@ -99,81 +99,85 @@ $(function() {
 	
 	
 	
-	// VERBBAR
+			// VERBBAR - still using?
+			// -------
+			jQuery.fn.verbparts = function() {
+				verbcombo = $(this).closest(".verbcombo");
+				verbopen = verbcombo.find(".verbopen");
+				verbbar = verbcombo.find(".verbbar");
+			};
+			jQuery.fn.settleverbs = function() {
+				$(this).verbparts();
+				if (verbbar.is(':visible')) {   // when this verbbar becomes visible...
+					$(".verbbar").not(verbbar).hide();   // hide all other verbbars
+					$(".verbopen").not(verbopen).fadeverb();
+					verbopen.darkenverb();
+					verbopen.attr('title', 'hide verbs');
+				} else {
+					verbopen.fadeverb();
+					verbopen.attr('title', 'see verbs');
+				}
+			};
+			jQuery.fn.fadeverb = function() {
+				$(this).removeClass('verbdarken');   
+				$(this).addClass('verbfade');
+			};
+			jQuery.fn.darkenverb = function() {
+				$(this).removeClass('verbfade');   
+				$(this).addClass('verbdarken');
+			};
+			
+			$(".verbopen").click(function() {
+				$(this).verbparts();
+				verbbar.toggle().settleverbs();
+			});
+			$(".verbbar").hide().settleverbs();
+			
+			$(".verbbar .verb-qiki").click(function() {
+				$(this).verbparts();
+				var $verb = $(this);
+				verb_state($verb.data('verb'), verbcombo.data('obj'), verbcombo.data('objid'), 1, 'delta');
+			});
 	
-	// jQuery.fn.verbparts = function() {
-		// verbcombo = $(this).closest(".verbcombo");
-		// verbopen = verbcombo.find(".verbopen");
-		// verbbar = verbcombo.find(".verbbar");
-	// };
-	// jQuery.fn.settleverbs = function() {
-		// $(this).verbparts();
-		// if (verbbar.is(':visible')) {   // when this verbbar becomes visible...
-			// $(".verbbar").not(verbbar).hide();   // hide all other verbbars
-			// $(".verbopen").not(verbopen).fadeverb();
-			// verbopen.darkenverb();
-			// verbopen.attr('title', 'hide verbs');
-		// } else {
-			// verbopen.fadeverb();
-			// verbopen.attr('title', 'see verbs');
-		// }
-	// };
-	// jQuery.fn.fadeverb = function() {
-		// $(this).removeClass('verbdarken');   
-		// $(this).addClass('verbfade');
-	// };
-	// jQuery.fn.darkenverb = function() {
-		// $(this).removeClass('verbfade');   
-		// $(this).addClass('verbdarken');
-	// };
 	
-	// $(".verbopen").click(function() {
-		// $(this).verbparts();
-		// verbbar.toggle().settleverbs();
-	// });
-	// $(".verbbar").hide().settleverbs();
 	
-	// $(".verbbar .verb-qiki").click(function() {
-		// $(this).verbparts();
-		// var $verb = $(this);
-		// usentence($verb.data('verb'), verbcombo.data('obj'), verbcombo.data('objid'), 1);
-	// });
 	
-	function usentence(verb, oclass, oid, delta) {   // create a sentence where the user (id or IP address) is the implied subject
+	function verb_state(verb, objclass, objid, value, op) {   // insert/set/delta a sentence where the user (id or IP address) is the implied subject
 		$.post(FORMSUBMITURL, {
-			'action': 'verb_associate',
+			'action': 'verb_state',
 			'verbname': verb,
-			'obj': oclass,
-			'objid': oid,
-			'delta': delta,
+			'objclass': objclass,
+			'objid': objid,
+			'value': value,
+			'op': op,
 		}, function(responseText, textStatus, jqXHR) {
 			if ($.trim(responseText) === 'success') {
 				window.location.reload();   // TODO: instead update object model, for pure AJAX without refresh
 			} else {
-				alert('Unable to ' + verb + '-associate a ' + oclass + ': ' + responseText);
+				alert('Unable to "' + verb + '-' + op + '" a ' + objclass + ': ' + responseText);
 			}
 		}).fail(function(jqXHR, textStatus, errorThrown) {
-			alert('Failed to ' + verb + '-associate a ' + oclass + ': ' + textStatus + ', status ' + jqXHR.status + ', response ' + delta);
+			alert('Failed to "' + verb + '-' + op + '" a ' + objclass + ': ' + textStatus + ', status ' + jqXHR.status + ', response ' + delta);
 		});
 	}
 	
-	function uset(verb, oclass, oid, setting) {   // TODO:  MMM with usentence()
-		$.post(FORMSUBMITURL, {
-			'action': 'verb_set',
-			'verbname': verb,
-			'obj': oclass,
-			'objid': oid,
-			'setting': setting,
-		}, function(responseText, textStatus, jqXHR) {
-			if ($.trim(responseText) === 'success') {
-				window.location.reload();   // TODO: instead update object model, for pure AJAX without refresh
-			} else {
-				alert('Unable to ' + verb + '-set a ' + oclass + ': ' + responseText);
-			}
-		}).fail(function(jqXHR, textStatus, errorThrown) {
-			alert('Failed to ' + verb + '-set a ' + oclass + ': ' + textStatus + ', status ' + jqXHR.status + ', response ' + setting);
-		});
-	}
+	// function uset(verb, oclass, oid, setting) {   // DONE:  MMM with verb_state()
+		// $.post(FORMSUBMITURL, {
+			// 'action': 'verb_set',
+			// 'verbname': verb,
+			// 'objclass': oclass,
+			// 'objid': oid,
+			// 'setting': setting,
+		// }, function(responseText, textStatus, jqXHR) {
+			// if ($.trim(responseText) === 'success') {
+				// window.location.reload();   // TODO: instead update object model, for pure AJAX without refresh
+			// } else {
+				// alert('Unable to "' + verb + '-set" a ' + oclass + ': ' + responseText);
+			// }
+		// }).fail(function(jqXHR, textStatus, errorThrown) {
+			// alert('Failed to "' + verb + '-set" a ' + oclass + ': ' + textStatus + ', status ' + jqXHR.status + ', response ' + setting);
+		// });
+	// }
 	
 	
 	
@@ -209,7 +213,7 @@ $(function() {
 				sclass = $source.closest('.noun-object').data('object-class');
 				sid = $source.closest('.noun-object').data('object-id');
 				if (sclass != oclass || sid != oid) {
-					usentence(verb, oclass, oid, 1);
+					verb_state(verb, oclass, oid, 1, 'delta');
 				}
 			},
 		})
@@ -235,7 +239,7 @@ $(function() {
 			verb = $source.data('verb');
 			oclass = $source.closest('.noun-object').data('object-class');
 			oid = $source.closest('.noun-object').data('object-id');
-			usentence(verb, oclass, oid, -1);
+			verb_state(verb, oclass, oid, -1, 'delta');
 		},
 	};
 	$.ui && $(".melast").draggable(dragoptions);   // noun - to - oblivion:  SUBTRACT RATING
@@ -285,11 +289,11 @@ $(function() {
 	
 	$('#showanon').change(function() {
 		var setting = $(this).is(':checked') ? '1' : '0';
-		uset('prefer', 'Preference', 1 /* new Preference('anon').id() */, setting);
+		verb_state('prefer', 'Preference', 1 /* new Preference('anon').id() */, setting, 'set');
 	});
 	$('#showspam').change(function() {
 		var setting = $(this).is(':checked') ? '1' : '0';
-		uset('prefer', 'Preference', 2 /* new Preference('spam').id() */, setting);
+		verb_state('prefer', 'Preference', 2 /* new Preference('spam').id() */, setting, 'set');
 	});
 	
 	// Selection
@@ -331,7 +335,7 @@ $(function() {
 				oclasses.push($(this).data('object-class'));
 				oids.push($(this).data('object-id'));
 			});
-			usentence(verb, oclasses, oids, 1);
+			verb_state(verb, oclasses, oids, 1, 'delta');
 		} else {
 			// Mean something else?  Elaborate on tool?
 		}

@@ -95,6 +95,11 @@ body {
 	margin-left: 10px;
 }
 
+#whatwouldlook .qikilink {
+	text-decoration: underline;
+	font-size: 1.4em;
+}
+
 #qomment {
 	width: 100%;
 }
@@ -176,26 +181,22 @@ a.qikilink:link {
 
 
 
-/* Verbbar */
+		/* Verbbar - still using? */
+		.verbopen {
+			cursor: pointer;
+			margin-left: 2px;
+		}
+		.verbbar .verb-qiki {
+			margin-right: 3px;
+			cursor: pointer;
+		}
+		.verbbar {
+			margin-left: 2px;
+			padding-left: 2px;
+			border: 1px solid;
+			border-color: silver gray black silver;
+		}
 
-/*
-	.verbopen {
-		cursor: pointer;
-		margin-left: 2px;
-	}
-
-	.verbbar .verb-qiki {
-		margin-right: 3px;
-		cursor: pointer;
-	}
-	.verbbar {
-		margin-left: 2px;
-		padding-left: 2px;
-		border: 1px solid;
-		border-color: silver gray black silver;
-	}
-
-*/
 
 
 

@@ -26,14 +26,21 @@ class UserQiki extends User {
 	static protected $useridBobStein = '1';
 	static protected $useridGuest = '2';
 	
-	static public $client = NULL;
+	static protected $client = NULL;
+	public function client() {
+		return self::$client;
+	}
 	static public function clientlogin() {  // (a second call has no effect ( is that still necessary after the QikiConnectLogin_already flag? ) )
-		if (is_null(UserQiki::$client)) {
-			UserQiki::$client = new UserQiki();
-			if (UserQiki::$anonymous_allow) UserQiki::$client->option('anonymous_allow', 'always');
-			UserQiki::$client->option('signup_allow', UserQiki::$client->may(UserQikiAccess::signup) ? 'yes' : 'no');
-			UserQiki::$client->login();   // login() --> loginForm() --> htmlhead() needs to use UserQiki::$client
+		if (is_null(self::$client)) {
+			self::$client = new self();
+			if (self::$anonymous_allow) self::$client->option('anonymous_allow', 'always');
+			self::$client->option('signup_allow', self::$client->may(UserQikiAccess::signup) ? 'yes' : 'no');
+			self::$client->login();   // login() --> loginForm() --> htmlhead() needs to use UserQiki::client()
 		}
+	}
+	static public function clientlogoff() {
+		self::$client->force_logoff();
+		self::$client = NULL;
 	}
 	public function __construct() {   // singleton class -- should be protected, but:  Fatal error: Access level to UserQiki::__construct() must be public (as in class User)
 		parent::__construct(SteinTable::pdo());
@@ -52,7 +59,7 @@ class UserQiki extends User {
 
 	static protected $anonymous_allow = TRUE;  // TODO: a better way (make this static private, and from infra.qiki call UserQiki::anonymousDisallow()?)
 	static public function anonymousDisallow() {
-		UserQiki::$anonymous_allow = FALSE;
+		self::$anonymous_allow = FALSE;
 	}
 	
 	public function loginForm($opts = array()) {
@@ -74,7 +81,7 @@ class UserQiki extends User {
 		$opts += array(
 			'hidepassword' => 'toggle',
 		);
-		// if (UserQiki::$client->may(UserQikiAccess::signup)) {
+		// if (self::client()->may(UserQikiAccess::signup)) {
 			return parent::signupForm($opts);
 		// } else {
 		//  	return "Signup is not currently available.";
@@ -94,10 +101,10 @@ class UserQiki extends User {
 	//		return 'maybe';   // Don't recognize the object type, let someone else decide (allowed, if no one recognizes)
 	// }
 	static public function mayer($mayer) {
-		UserQiki::$mayers[] = $mayer;
+		self::$mayers[] = $mayer;
 	}
 	public function may(/* UserQikiAccess:: */ $access, /* NounClass:: */ $object = NULL, $context = NULL) {
-		foreach (UserQiki::$mayers as $id => $mayer) {
+		foreach (self::$mayers as $id => $mayer) {
 			$mayoid = $mayer($this, $access, $object, $context);
 			switch (TRUE) {   // type-strict switch, thanks to Greg W: http://stackoverflow.com/a/3525666/673991
 			case ($mayoid === 'yes'):
@@ -115,15 +122,15 @@ class UserQiki extends User {
 				die("UserQiki::mayer[$id]() returned '" . var_export($mayoid, TRUE) . "'");   // TODO: identify caller
 			}
 		}
-		return TRUE;   // TODO:  return UserQiki::$anonymous_allow ?   Meh, that conflates nonspecificity of user with nonspecificity of object
+		return TRUE;   // TODO:  return self::$anonymous_allow ?   Meh, that conflates nonspecificity of user with nonspecificity of object
 	}
 	
 	public function isSuper() {
-		return $this->id() == UserQiki::$useridBobStein;
+		return $this->id() == self::$useridBobStein;
 	}
 	
 	public function isGuest() {
-		return $this->id() == UserQiki::$useridGuest;
+		return $this->id() == self::$useridGuest;
 	}
 }
 
@@ -171,10 +178,13 @@ UserQiki::mayer(function($user, $access, $object, $context) {   // TODO: this co
 				return $user->isAnon() ? $SETTINGS['allow-anonseeuser'] : $SETTINGS['allow-userseeuser'];
 			}
 			die("Unknown user-may See Comment context: " . var_export($context, TRUE));
+		case ($object === NounClass::QikiQuestion):
+			return $user->isAnon() ? FALSE : TRUE;
 		default:
-			
+			die("Unknown user-may See object: " . var_export($object, TRUE));
 		}
-		die("Unknown user-may See object: " . var_export($object, TRUE));
+	default:
+		die("Unknown user-may access: " . var_export($access, TRUE));
 	}
-	die("Unknown user-may access: " . var_export($access, TRUE));
+	die("Unexpected UserQiki::mayer() fall-through " . var_export(func_get_args(), TRUE));
 });

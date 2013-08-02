@@ -51,7 +51,7 @@ class Preference {
 		$wheretests[] = "s.object_class = ?";
 		$queryparameters[] = NounClass::Preference;
 
-		$WHEREclause = $wheretests == array() ? '' : "WHERE " . join(' AND ', $wheretests);
+		$WHEREclause = empty($wheretests) ? '' : "WHERE " . join(' AND ', $wheretests);
 		$id2value = Sentence::pdo()->column("
 			SELECT 
 				s.object_id,

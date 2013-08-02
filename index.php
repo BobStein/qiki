@@ -8,8 +8,9 @@ require_once('Comment.php');
 htmlhead('qiki');
 
 ?>
+<p>A qiki is the experience of a question answered quickly.</p>
 
-A qiki:
+<p>A good qiki:</p>
 
 <ol>
 	<li>gives answers in seconds (or great clues)
@@ -31,8 +32,8 @@ stein at visibone dot com
 
 <?php
 
-if (UserQiki::$client->may(UserQikiAccess::see, NounClass::Comment, 'user')) {
-	if (UserQiki::$client->may(UserQikiAccess::see, NounClass::Comment, 'anon')) {
+if (UserQiki::client()->may(UserQikiAccess::see, NounClass::Comment, 'user')) {
+	if (UserQiki::client()->may(UserQikiAccess::see, NounClass::Comment, 'anon')) {
 		$minlevel = 'anon';
 	} else {
 		$minlevel = 'user';
@@ -42,7 +43,7 @@ if (UserQiki::$client->may(UserQikiAccess::see, NounClass::Comment, 'user')) {
 		'limit' => $limitrows, 
 		'totalrows' => &$totalrows, 
 		'minlevel' => $minlevel,
-		'client_id' => UserQiki::$client->id(),
+		'client_id' => UserQiki::client()->id(),
 	));
 	echo "<h2>Recent Comments</h2>\n";
 	echo "<table class='commentlist'>\n";

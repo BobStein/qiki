@@ -4,27 +4,59 @@
 
 require_once('SteinPDO.php');
 require_once('User.php');  // to get the name of who made a comment
-require_once('mysqli_read_column.php');
-require_once('mysqli_read_row.php');
 require_once('qikilink.php');
+require_once('Verb.php');
 require_once('Scorer.php');
+require_once('QikiQuestion.php');
+require_once('alldigits.php');
 
-class Comment extends SteinTable {
-	static protected $table = __CLASS__;
+class Comment extends SteinTable {   // Represents not just a noun (class/info pair), but an entire sentence+clause with a Comment-noun in the clause
+	// static protected $table = __CLASS__;
 	// static protected /* SteinPDO */ $pdo;
 	protected $row;
+	public function id() {
+		return $this->row['sentence_id'];
+	}
+	public function kontext() {
+		return $this->row['kontext'];
+	}
+	public function qomment() {
+		return $this->row['qomment'];
+	}
 	public function __construct($id) {
-		try {
-			$this->row = Comment::$pdo->row("
-				SELECT 
-					*, 
-					TIMESTAMPDIFF(SECOND, created, NOW()) as seconds_ago 
-				FROM ".Comment::$table."
-				WHERE comment_id = ?
-			", array($id));
-		} catch (PDOException $e) {
-			die("Error reading comment - " . $e->getMessage());
+		$this->row = self::$pdo->row("
+			SELECT
+				s.*,
+				c.noun_info AS qomment,
+				TIMESTAMPDIFF(SECOND, s.created, NOW()) as seconds_ago 
+			FROM ".Sentence::$table." AS s
+			JOIN ".Clause::$table." AS c
+				ON c.sentence_id  = s.sentence_id
+				AND c.noun_class = '".NounClass::Comment."'
+			WHERE s.sentence_id = ?
+		", array($id));
+		
+		switch ($this->row['object_class']) {
+		case NounClass::QikiQuestion:
+			$qq = new QikiQuestion($this->row['object_id']);
+			$this->row['kontext'] = $qq->question();
+			break;
+			// TODO: support comments on other objects
+		default:
+			$this->row['kontext'] = "(unknown context for {$this->row['object_class']})";
+			break;
 		}
+		// try {
+			// $this->row = Comment::$pdo->row("
+				// SELECT 
+					// *, 
+					// TIMESTAMPDIFF(SECOND, created, NOW()) as seconds_ago 
+				// FROM ".Comment::$table."
+				// WHERE comment_id = ?
+			// ", array($id));
+		// } catch (PDOException $e) {
+			// die("Error reading comment - " . $e->getMessage());
+		// }
 	}
 	// static public function pdo($newpdo = NULL) {
 		// if (!is_null($newpdo)) {
@@ -32,25 +64,34 @@ class Comment extends SteinTable {
 		// }
 		// return Comment::$pdo;
 	// }
-	static public function insert($qomment, $qontributor, $kontext) {   // TODO:  Comment.qontributor -> Sentence.subject_id?
-		try {
-			$stmt = Comment::$pdo->prepare("
-				INSERT INTO ".Comment::$table." ( qomment,  qontributor,  kontext, created) 
-							             VALUES (       ?,            ?,        ?,   NOW())");
-			$stmt->execute(array                ($qomment, $qontributor, $kontext         ));
-		} catch (PDOException $e) {
-			die("Error writing comment - " . $e->getMessage());
+	static public function insert($verbname, $qomment, $qontributor, $kontext) {   // TODO:  Comment.qontributor -> Sentence.subject_id?
+		// No -- $question = preg_replace('#^/#', '', $kontext, 1);   // kontext starts with a slash, question doesn't, or do we call that a qontext.  This war will end at some other place and time.
+		$qq = QikiQuestion::BoldFactory($kontext);
+		$verb = new Verb($verbname);
+		if (alldigits($qontributor)) {   // TODO:  UserQiki::MurkyFactory($idorIP) makes a Noun object, User or IP, depending on content
+			$subject = new Noun(NounClass::User, $qontributor);
+		} else {
+			$subject = new Noun(NounClass::IPAddress, sprintf("%u", ip2long($qontributor)));   //  in case PHP is 32-bit, make unsigned
 		}
-		return new Comment(Comment::$pdo->lastInsertId());
+		$sentence_id = $verb->state(array(
+			'subject' => $subject,
+			'object' => $qq->noun(),
+			'clause' => array(new Noun(NounClass::Comment, $qomment)),
+			'op' => 'insert',
+		));
+
+			// try {
+				// $stmt = Comment::$pdo->prepare("
+					// INSERT INTO ".Comment::$table." ( qomment,  qontributor,  kontext, created) 
+											 // VALUES (       ?,            ?,        ?,   NOW())");
+				// $stmt->execute(array                ($qomment, $qontributor, $kontext         ));
+			// } catch (PDOException $e) {
+				// die("Error writing comment - " . $e->getMessage());
+			// }
+
+		return $sentence_id;    // Comment::$pdo->lastInsertId());
 	}
 	static public function byRecency($opts) {   // returns recent Comment objects, array(id => Comment, ...)
-		// $ids = Comment::$pdo->column("
-			// SELECT comment_id 
-			// FROM ".Comment::$table."
-			// $WHEREclause
-			// ORDER BY created DESC
-			// LIMIT ?
-		// ", array($opts['limit']));   // Note: requires setting PDO::ATTR_EMULATE_PREPARES to FALSE
 		$ids = Comment::fetchem($opts);
 		$retval = array();
 		foreach($ids as $id) {
@@ -59,15 +100,7 @@ class Comment extends SteinTable {
 		return $retval;
 	}
 	static public function byKontext($kontext, $opts = array()) {   // returns Comment objects about a qiki, array(id => Comment, ...)
-		$opts += array(
-			'kontext' => $kontext,
-		);
-		// $ids = Comment::$pdo->column("
-			// SELECT comment_id 
-			// FROM ".Comment::$table."
-			// WHERE kontext=? 
-			// ORDER BY created DESC
-		// ", array($kontext));
+		$opts['kontext'] = $kontext;
 		$ids = Comment::fetchem($opts);
 		$retval = array();
 		foreach($ids as $id) {
@@ -79,12 +112,12 @@ class Comment extends SteinTable {
 		$opts += array(
 			'limit' => '10',        // max number of comments to return
 			'minlevel' => 'anon',	// 'anon' or 'user' -- minimum level of comment author to include
-			'kontext' => '',        // e.g. 'php/strlen'
+			'kontext' => '',        // QikiQuestion, e.g. 'php/strlen'
 			'totalrows' => &$countRowsRegardlessOfLimit,
 			'scorer' => NULL,
 			'minscore' => NULL,
 			'maxscore' => NULL,
-			'client_id' => NULL,   // e.g. UserQiki::$client->id() for the scoring context
+			'client_id' => NULL,   // e.g. UserQiki::client()->id() for the scoring context
 		);
 		$vars = array();
 		$wheres = array();
@@ -92,44 +125,55 @@ class Comment extends SteinTable {
 		case 'anon': 
 			break;
 		case 'user': 
-			$ALLDIGITS = "^[[:digit:]]+\$";
-			$wheres[] = "qontributor RLIKE '$ALLDIGITS'"; 
+			// $ALLDIGITS = "^[[:digit:]]+\$";
+			// $wheres[] = "qontributor RLIKE '$ALLDIGITS'"; 
+			$wheres[] = "s.subject_class = '".NounClass::User."'";
 			break;  
 		default: 
-			die("Comment::fetchem(array('minlevel'=>'$opts[minlevel]'))");
+			die("Comment::fetchem(minlevel => $opts[minlevel])");
 		}
-		if ($opts['kontext'] == '') {
-			
-		} else {
-			$wheres[] = "kontext = ?";
-			$vars[] = $opts['kontext'];
+		if ($opts['kontext'] != '') {
+			$qq = QikiQuestion::TimidFactory($opts['kontext']);
+			$is_absent_from_QikiQuestion_table = $qq === FALSE;
+			if ($is_absent_from_QikiQuestion_table) {
+				$wheres[] = "FALSE";  // can't be any comments here, if the QikiQuestion was never recorded
+			} else {
+				$wheres[] = "s.object_class = '".NounClass::QikiQuestion."'";
+				$wheres[] = "s.object_id = ?";
+				$vars[] = $qq->id();
+			}
 		}
 		
-		if ($wheres == array()) {
-			$WHEREclause = '';
-		} else {
-			$WHEREclause = 'WHERE ' . join(' AND ', $wheres);
-		}
+		$WHEREclause = empty($wheres) ? '' : 'WHERE ' . join(' AND ', $wheres);
 		if ($opts['limit'] == '') {
 			$LIMITclause = '';
 		} else {
 			$LIMITclause = "LIMIT ?";
 			$vars[] = $opts['limit'];
 		}
-		$ids = Comment::$pdo->column("
+		
+		
+		
+		$ids = self::$pdo->column("
 			SELECT SQL_CALC_FOUND_ROWS 
-				comment_id 
-			FROM ".Comment::$table."
+				s.sentence_id 
+			FROM ".Sentence::$table." AS s
+			JOIN ".Clause::$table." AS c
+				ON c.sentence_id  = s.sentence_id
+				AND c.noun_class = '".NounClass::Comment."'
 			$WHEREclause
-			ORDER BY created DESC
+			ORDER BY s.created DESC
 			$LIMITclause
 		", $vars);
-		$opts['totalrows'] = intval(Comment::$pdo->cell("SELECT FOUND_ROWS()"));
+		$opts['totalrows'] = intval(self::$pdo->cell("SELECT FOUND_ROWS()"));
+		
+		
+
 		if (!is_null($opts['scorer'])) {
 			$scorer = new Scorer($opts['scorer']);
 			foreach ($ids as $k => $id) {
 				$score = $scorer->score(array(
-					NounClass::Comment => $id, 
+					NounClass::Sentence => $id, 
 					'client_id' => $opts['client_id'],
 				));
 				if ((!is_null($opts['minscore']) && $score < $opts['minscore'])
@@ -147,32 +191,17 @@ class Comment extends SteinTable {
 		return qikilinkWhole($this->row['kontext']);
 	}
 	public function whotype() {
-		if (1 == preg_match('/^\\d+$/', $this->row['qontributor'])) {
-			return 'user';
-		} else if (1 == preg_match('/^\\d+\\.\\d+\\.\\d+\\.\\d+$/', $this->row['qontributor'])) {
-			return 'ipaddress';
-		} else {
-			return 'unknown';
-		}
-	}
-	public function id() {
-		return $this->row['comment_id'];
-	}
-	public function kontext() {
-		return $this->row['kontext'];
-	}
-	public function qomment() {
-		return $this->row['qomment'];
+		return strtolower($this->row['subject_class']);
 	}
 	public function who() {
 		switch ($this->whotype()) {
 		case 'user':
-			$whouser = new User(Comment::$pdo);
-			$whouser->byId($this->row['qontributor']);
+			$whouser = new User(Comment::$pdo);   // TODO:  would UserQiki() work here?
+			$whouser->byId($this->row['subject_id']);
 			$retval = $whouser->name();
 			break;
 		case 'ipaddress':
-			$retval = $this->row['qontributor'];
+			$retval = long2ip($this->row['subject_id']);
 			break;
 		default:
 			$retval = "???";

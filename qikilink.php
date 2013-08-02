@@ -23,7 +23,7 @@ function test_qikilink() {
 }
 
 function qikilinkWhole($q) {
-	$q = preg_replace('#^/#', '', $q);
+	// $q = preg_replace('#^/#', '', $q, 1);
 	return "<a href='" . qikiurl($q) . "' class='qikilink'>" . htmlspecialchars($q) . "</a>";
 }
 
@@ -40,7 +40,7 @@ function qikilinkifyText($s) {   // convert to hyperlinks all phrases e.g. "qiki
 	// $s = preg_replace_callback('#\\bqiki:"/?(.+?)"#', function($m) {
 		// return "<a href='" . qikiurl($m[1]) . "' class='qikilink'>" . htmlspecialchars($m[1]) . "</a>";
 	// }, $s);
-	$s = preg_replace_callback('#\\bqiki:/?(\\S+)#', function($m) {
+	$s = preg_replace_callback('#\\bqiki:(\\S+)#', function($m) {
 		//$q = str_replace('_', ' ', $m[1]);   // TODO: leave alone underscores that touch slashes or edges, e.g. "php/_"
 		return qikilinkWhole($m[1]);
 	}, $s);
