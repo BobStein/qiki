@@ -8,24 +8,28 @@ require_once('alldigits.php');
 
 interface NounClass {   // for the Sentence.object_class and Sentence.subject_class fields
 	const Verb         = 'Verb';     	// don't be alarmed, the word "verb" is a noun, this might be used e.g. to state User X likes Verb Y
-	const Comment      = 'Comment';   
+	const Comment      = 'Comment';     // human answers (clause only)
 	const User         = 'User';		// TODO: how to handle new User versus new UserQiki?
  	const QikiQuestion = 'QikiQuestion';// 
  	const IPAddress    = 'IPAddress';	// and store the ID using *unsigned* ip2long() 
 	const Preference   = 'Preference';	// user preference, e.g. seeing anonymous comments, or spam
-	const Script       = 'Script';		// for UserQiki::may(UserQikiAccess::blah, NounClass::Script)     (NOTE: only NounClass that isn't a php class name AND isn't a qiki database table name)
-										// Instead: qiki/qiki/software/xxxxx.php?  Or let a sentence make that association?
 	const Unused       = 'Unused';		// for sentences with 1 noun or 0 nouns??
 	const Sentence     = 'Sentence';	// (a sentence can refer to another sentence, e.g. for 3 or more nouns)
+	const Author       = 'Author';      // maybe it should be called Variant, but it tracks the different answers, or something
 
-	// 	const URL
+	const Script       = 'Script';		// for UserQiki::may(UserQikiAccess::blah, NounClass::Script)     (NOTE: only NounClass that isn't a php class name AND isn't a qiki database table name)
+										// Instead: qiki/qiki/software/xxxxx.php?  Or let a sentence make that association?
+	const QikiML       = 'QikiML';      // Qiki answers (clause only)
+	
+// 	const URL
 //	const Server or Site				// as in, a satellite qiki.somewheresite.com
 //	const Scorer
 //	const Feature instead of Preference?
 //	const Language						// (human)
 //	const Proposal						// a call for human action, e.g. development, censure, mediation, etc., including bounties and anti-bounties (donations if it fails)
-//	const Time							// 32 bit TIMESTAMP or 64 bit DATETIME
+//	const Time							// 64 bit DATETIME, for users to say when stuff happened, e.g. [Time]->(born)->[User/...]  or  ->[Qiki/qiki/human/...]
 //	const AideMemoire					// VisiBone cheatsheet, example2 or syntax3
+//	const Group or Badge				// Anonymous, Human, address-verified, bot, vouched-for, SuperUser, Developer, badges ala Stackexchange, native as in language
 
 }
 // Note these names must be secure, as they are not protected from injection attack (no check made whether they have ' in them).
@@ -50,6 +54,16 @@ Comment about Comment?  (value = root comment??)
 */
 
 class Sentence extends SteinTable implements NounClass {
+    protected /* LeanNoun */ $subject;
+    public $verb;
+    protected /* LeanNoun*/ $object;
+    
+    public function assertValid() {
+        $subject->assertValid();
+        $verb->assertValid();
+        $object->assertValid();
+    }
+    
 	static public $table = __CLASS__;  // accessible to Verb or Sentence or Scorer or Preference
 	protected $row;
 	public $verb;
@@ -82,6 +96,12 @@ class Sentence extends SteinTable implements NounClass {
 
 class Clause {
 	static public $table = __CLASS__;
+    protected $sentence_id;
+    protected /* FatNoun */ $noun;
+    public function assertValid() {
+        // $sentence_id is in Sentence.sentence_id table, or self::NO_ID
+        $noun->assertValid();
+    }
 }
 
 class Noun {
@@ -114,6 +134,25 @@ class Noun {
 	}
 	// TODO:  instantiate the object??  e.g. $this->instance = new $this->nclass()($this->info());   // But it breaks on UserQiki, maybe use pclass() instead of nclass()
 	// Or should all nounific classes extend Noun?  Instead of SteinTable, which is just a stoopid global globbifier anyway.  Yea this makes more sense.
+    public function assertValid() {
+        assssert(isNounClass($this->nclass()));
+    }
+}
+
+class LeanNoun extends Noun {
+    public function assertValid() {
+        // class is one of the enums of Sentence.object_class or Sentence.subject_class
+        // info is alldigits()
+        parent::assertValid();
+    }
+}
+
+class FatNoun extends Noun {
+    public function assertValid() {
+        // class is a string, 255 char max, in
+        // info is a string, 65K max
+        parent::assertValid();
+    }
 }
 
 
@@ -129,6 +168,7 @@ class Verb extends SteinTable {
 	static public $table = __CLASS__;  // accessible to Verb or Scorer
 	//static protected /* SteinPDO */ $pdo;
 	protected $row;
+	
 	public function __construct($nameorid) {
 		// self::checkPdo();
 		if (alldigits($nameorid)) {
@@ -145,35 +185,43 @@ class Verb extends SteinTable {
 			", array($nameorid));
 		}
 	}
+    public function assertValid() {
+        // $this->id() is either NO_ID or in the Verb.verb_id database
+    }
+    
 	public function id() {
 		return $this->row['verb_id'];
 	}
 	public function name() {
 		return $this->row['name'];
 	}
-	public function state($opts) {   // sentence maker, changer.  Returns $sentence_id if 1, or array if $opts['object'] is an array.
-	
+	public function state($opts) {   // sentence maker, changer.  Returns $sentence_id normally, or array of them if $opts['object'] is an array.
+
 		// Whadaya know, the order that seems to make the most sense is verb-object-subject.  Ala Mayan Tzotzil.
 		// http://en.wikipedia.org/wiki/Verb%E2%80%93object%E2%80%93subject
-		
+
 		$opts += array(
 			'object'  => new Noun(NounClass::Unused, '0'),   // or array(Noun, Noun, ...)
 			'subject' => new Noun(NounClass::Unused, '0'),
 			'clause' => array( /* Noun, Noun, ... */ ),
 			'value' => 0,
+			'changecount' => &$number_of_sentences_changed,
 			
 			/* op => set      force the value, if a sentence with this subject-verb-object exists already, overwrite */
 			/* op => delta      add the value, if a sentence with this subject-verb-object did NOT exist, pretend it was zero */
 			/* op => insert   always insert a new sentence, whether or not one already exists with this subject-verb-object */
 			
-			// TODO: instead of $opts['op'], 3 methods:  newSentence(), incSentence(), setSentence() (ala operators: new, +=, =)
+			// TODO: instead of $opts['op'], 3 methods:  newSentence(), incSentence(), setSentence() (ala operators: new, +=, =) -- unified internally via 'op'?
 		);
 		if (is_array($opts['object'])) {
 			$retval = array();
+			$totalChanges = 0;
 			while ($opts['object'] != array()) {
 				$nextobject = array_shift($opts['object']);
 				$retval[] = $this->state(array('object' => $nextobject) + $opts);
+				$totalChanges += $opts['changecount'];
 			}
+			$opts['changecount'] = $totalChanges;
 			return $retval;
 		} else {
 			assssert(alldigits($opts['object']->ninfo()), "Verb::state() object non numeric id: '" . $opts['object']->ninfo() . "'");
@@ -197,17 +245,23 @@ class Verb extends SteinTable {
 				$row = $this->sentenceSelect($equs, $vars);
 				if ($row === array()) {
 					$sentence_id = $this->sentenceInsert($equs, $vars, $opts['value']);
-					// TODO: clause insert
+					$this->clauseSet($sentence_id, $opts['clause']);
+					$opts['changecount'] = 1;
 				} else {
 					assssert($this->sentenceSelectFound() == 1, "Verb::state() expected to find 1 sentence, not " . $this->sentenceSelectFound());
-					$this->sentenceUpdate($equs, $vars, $opts);
+					$this->sentenceUpdate($row, $opts);
 					$sentence_id = $row['sentence_id'];
-					// TODO: clause update
+					$didClauseChange = $this->clauseSet($sentence_id, $opts['clause']);
+					if ($didClauseChange) {
+						$this->sentenceModified($sentence_id);
+						$opts['changecount'] = 1;
+					}
 				}
 				break;
 			case 'insert':
 				$sentence_id = $this->sentenceInsert($equs, $vars, $opts['value']);
-				$this->clauseInsert($sentence_id, $opts['clause']);
+				$this->clauseSet($sentence_id, $opts['clause']);
+				$opts['changecount'] = 1;
 				break;
 			default:
 				die("Verb::state() bad op '$opts[op]'");
@@ -239,95 +293,150 @@ class Verb extends SteinTable {
 		$equs[] = "created = NOW()";
 		
 		$stmt = self::$pdo->prepare("
-			INSERT 
-			INTO ".Sentence::$table."
+			INSERT INTO ".Sentence::$table."
 			SET ".join(',', $equs)."
 		");
 		$stmt->execute($vars);
 		return self::$pdo->lastInsertId();
 	}
 	
-	protected function sentenceUpdate($equs, $vars, $opts) {
+	protected function sentenceModified($sentence_id) {   // because the clause was modified
+		$stmt = self::$pdo->prepare("
+			UPDATE ".Sentence::$table." 
+			SET modified = NOW()
+			WHERE sentence_id = ?
+			LIMIT 1   /* just in case */
+		");
+		$stmt->execute(array($sentence_id));
+	}
+	
+	protected function sentenceUpdate($row, $opts) {
 		$opts += array(
 			/* op => set or delta */
 			'value' => 0,
+			'changecount' => &$whether_sentence_changed_zero_or_one,
 		);
-		assssert($equs != array());
-		
 		switch ($opts['op']) {
-		case 'set':    $SETclause = "SET value = ?"; break;
-		case 'delta':  $SETclause = "SET value = value + (?)"; break;
+		case 'set':    
+			if (doubleval($row['value']) == doubleval($opts['value'])) {
+				$opts['changecount'] = 0;
+				return;
+			} else {
+				$opts['changecount'] = 1;
+			}
+			$SETclause = "SET value = ?";
+			break;
+		case 'delta':  
+			if (doubleval($opts['value']) == 0.0) {
+				$opts['changecount'] = 0;
+			} else {
+				$opts['changecount'] = 1;
+			}
+			$SETclause = "SET value = value + (?)"; 
+			break;
 		default: 
 			die('Verb::sentenceUpdate bad op $opts[op]');
 		}
-		array_unshift($vars, $opts['value']);
-		
+		$SETclause .= ", modified = NOW()";   // TODO: modified only if clause or something else changed
 		$stmt = self::$pdo->prepare("
 			UPDATE ".Sentence::$table." 
 			$SETclause
-			WHERE ".join(' AND ', $equs)."
+			WHERE sentence_id = ?
 			LIMIT 1   /* just in case */
 		");
-		$stmt->execute($vars);
+		$stmt->execute(array($opts['value'], $row['sentence_id']));
 	}
 	
-	protected function clauseInsert($sentence_id, $nouns) {
+	protected function clauseSet($sentence_id, $nouns) {   // returns TRUE if record changed, FALSE otherwise
 		assssert(is_array($nouns), "Verb::clauseInsert() expecting an array, not a " . gettype($nouns));  // TODO recursively allow a Noun, or array of Noun
+		$retval = FALSE;
 		foreach ($nouns as $noun) {
 			assssert($noun instanceof Noun, "Verb::clauseInsert() expecting an array of Noun, not of " . get_class($noun));
-			$equs = array();             $vars = array();
-			$equs[] = "sentence_id = ?"; $vars[] = $sentence_id;
-			$equs[] = "noun_class = ?";  $vars[] = $noun->nclass();
-			$equs[] = "noun_info = ?";   $vars[] = $noun->ninfo();
+			
+			$equs1 = array();             $vars1 = array();
+			$equs1[] = "sentence_id = ?"; $vars1[] = $sentence_id;
+			$equs1[] = "noun_class = ?";  $vars1[] = $noun->nclass();
+			$oldninfo = self::$pdo->cell("
+				SELECT noun_info
+				FROM ".Clause::$table."
+				WHERE ".join(' AND ', $equs1)."
+			", $vars1);
+			if ($oldninfo !== FALSE && $oldninfo === $noun->ninfo()) {
+				continue;
+			}
+			
+			$retval = TRUE;
+			$upds2 = array();
+			$equs2 = $equs1;              $vars2 = $vars1;
+			$equs2[] = "noun_info = ?";   $vars2[] = $noun->ninfo();
+			$upds2[] = "noun_info = ?";   $vars2[] = $noun->ninfo();
 			$stmt = self::$pdo->prepare("
-				INSERT 
-				INTO ".Clause::$table."
-				SET ".join(',', $equs)."
+				INSERT INTO ".Clause::$table."
+				SET ".join(',', $equs2)."
+				ON DUPLICATE KEY UPDATE ".join(',', $upds2)."
 			");
-			$stmt->execute($vars);
-		}	
+			$stmt->execute($vars2);
+			
+			$newninfo = self::$pdo->cell("
+				SELECT noun_info
+				FROM ".Clause::$table."
+				WHERE ".join(' AND ', $equs1)."
+			", $vars1);
+			if ($newninfo === FALSE || $newninfo !== $noun->ninfo()) {
+				die("
+					{$noun->nclass()} Clause Mismatch for sentence $sentence_id:
+					<div>
+						{$noun->ninfo()}
+					</div>
+						$newninfo
+					<div>
+					</div>
+				");   // this happens e.g. when writing 8829 characters that MySQL UTF-8-ifies to "?"
+			}
+		}
+		return $retval;
 	}
 	
-	// TODO:  function state($subject, $verb, $object, $newValue or $deltaValue) where the 1st and 3rd parameters are Noun objects (and returns a Sentence object)
+	// DONE:  function state($subject, $verb, $object, $newValue or $deltaValue) where the 1st and 3rd parameters are Noun objects (and returns a Sentence object)
 
 	
-	public function associate($objclass, $objid, $sclass, $sid, $delta = 1) {   // $object class and id can be tandem arrays
-		if (is_array($objclass) && is_array($objid)) {
-			if (count($objclass) != count($objid)) {
-				die("Verb::associate() object array count mismatch, class has " . count($objclass) . " and id has " . count($objid));
-			}
-			while ($objclass != array()) {
-				$nextclass = array_shift($objclass);
-				$nextid = array_shift($objid);
-				$this->associate($nextclass, $nextid, $sclass, $sid, $delta);
-			}
-		} elseif (is_string($objclass) && is_string($objid)) {
-			try {
-				$verbid = $this->id();
-				$sDelta = strval($delta);
-				$stmt = self::$pdo->prepare("
-					INSERT INTO ". Sentence::$table." (    verb_id, object_class, object_id, subject_class, subject_id,   value, created)
-											   VALUES (          ?,            ?,         ?,             ?,          ?,       ?,   NOW()) ON DUPLICATE KEY UPDATE value = value + (?)");
-				$stmt->execute(array                  (    $verbid,    $objclass,    $objid,       $sclass,       $sid, $sDelta,                                             $sDelta));
-				if ('00000' !== $stmt->errorCode()) die('Verb::associate() execute error ' . $stmt->errorCode());   // never happens, right?
-			} catch (PDOException $e) {
-				die("Verb::associate() error: {$this->name()} with a $objclass - " . $e->getMessage());
-			}
-		} else {
-			die("Verb::associate() object type error, class is a " . gettype($objclass) . " and id is a " . gettype($objid));
-		}
-	}
-	public function set($objclass, $objid, $sclass, $sid, $setting) {   // TODO:  MergeMorphMeld with associate()
-		try {
-			$verbid = $this->id();
-			$stmt = self::$pdo->prepare("
-				INSERT INTO ". Sentence::$table." (    verb_id, object_class, object_id, subject_class, subject_id,    value, created)
-							               VALUES (          ?,            ?,         ?,             ?,          ?,        ?,   NOW()) ON DUPLICATE KEY UPDATE value = ?");
-			$stmt->execute(array                  (    $verbid,    $objclass,    $objid,       $sclass,       $sid, $setting,                                   $setting));
-		} catch (PDOException $e) {
-			die("Error setting {$this->name()} with a $objclass - " . $e->getMessage());
-		}
-	}
+	// public function associate($objclass, $objid, $sclass, $sid, $delta = 1) {   // $object class and id can be tandem arrays
+		// if (is_array($objclass) && is_array($objid)) {
+			// if (count($objclass) != count($objid)) {
+				// die("Verb::associate() object array count mismatch, class has " . count($objclass) . " and id has " . count($objid));
+			// }
+			// while ($objclass != array()) {
+				// $nextclass = array_shift($objclass);
+				// $nextid = array_shift($objid);
+				// $this->associate($nextclass, $nextid, $sclass, $sid, $delta);
+			// }
+		// } elseif (is_string($objclass) && is_string($objid)) {
+			// try {
+				// $verbid = $this->id();
+				// $sDelta = strval($delta);
+				// $stmt = self::$pdo->prepare("
+					// INSERT INTO ". Sentence::$table." (    verb_id, object_class, object_id, subject_class, subject_id,   value, created)
+											   // VALUES (          ?,            ?,         ?,             ?,          ?,       ?,   NOW()) ON DUPLICATE KEY UPDATE value = value + (?)");
+				// $stmt->execute(array                  (    $verbid,    $objclass,    $objid,       $sclass,       $sid, $sDelta,                                             $sDelta));
+				// if ('00000' !== $stmt->errorCode()) die('Verb::associate() execute error ' . $stmt->errorCode());   // never happens, right?
+			// } catch (PDOException $e) {
+				// die("Verb::associate() error: {$this->name()} with a $objclass - " . $e->getMessage());
+			// }
+		// } else {
+			// die("Verb::associate() object type error, class is a " . gettype($objclass) . " and id is a " . gettype($objid));
+		// }
+	// }
+	// public function set($objclass, $objid, $sclass, $sid, $setting) {   // DONE:  MergeMorphMeld with associate()
+		// try {
+			// $verbid = $this->id();
+			// $stmt = self::$pdo->prepare("
+				// INSERT INTO ". Sentence::$table." (    verb_id, object_class, object_id, subject_class, subject_id,    value, created)
+							               // VALUES (          ?,            ?,         ?,             ?,          ?,        ?,   NOW()) ON DUPLICATE KEY UPDATE value = ?");
+			// $stmt->execute(array                  (    $verbid,    $objclass,    $objid,       $sclass,       $sid, $setting,                                   $setting));
+		// } catch (PDOException $e) {
+			// die("Error setting {$this->name()} with a $objclass - " . $e->getMessage());
+		// }
+	// }
 	static public function all($opts = array()) {
 		self::checkPdo();
 		$ids = self::$pdo->column("SELECT verb_id FROM ". self::$table." ORDER BY verb_id ASC");
@@ -397,12 +506,14 @@ class Verb extends SteinTable {
 		$retval = self::$pdo->column("
 			SELECT 
 				v.name,
-				sum(s.value) as total
+				SUM(s.value) AS total
 			FROM ".Sentence::$table." AS s
 			JOIN ".self::$table." AS v
 				USING(verb_id)
 			$WHEREclause
 			GROUP BY verb_id
+			HAVING MIN(s.value) != 0   # weeds out retracted ratings
+				OR MAX(s.value) != 0
 			$ORDERclause
 		", $queryparameters);
 		return $retval;
@@ -479,9 +590,16 @@ class Verb extends SteinTable {
 		
 		$retval = '';
 		$retval .= "<div class='qoolbar'>";
-		$retval .= self::showverbs($verbsIveUsed);
-		$retval .= "<p>:</p>\n";
-		$retval .= self::showverbs($verbsUnusedByMe);
+		$verbTool = new self('tool');
+		$retval .= $verbTool->img(array('class' => ''));
+		if (count($verbsIveUsed) > 0 || count($verbsUnusedByMe) > 0) {
+			$retval .= "<p>&middot;&middot;&middot;</p>\n";
+		}
+		$retval .= self::showverbs($verbsIveUsed, array('class' => 'qool'));
+		if (count($verbsIveUsed) > 0 && count($verbsUnusedByMe) > 0) {
+			$retval .= "<p>&middot;&middot;&middot;</p>\n";
+		}
+		$retval .= self::showverbs($verbsUnusedByMe, array('class' => 'qool'));
 		$retval .= "</div>";
 		return $retval;
 	}
@@ -491,17 +609,18 @@ class Verb extends SteinTable {
 			// 'classes' => 'verblist',
 			'postsup' => array(),		// array(verbname => value, ...) as returned by Verb::associations()
 			'postsub' => array(),		// array(verbname => value, ...) as returned by Verb::associations()
+			'class' => '',				// class(es) for img
 		);
 		$retval = '';
 		foreach ($verbs as $verbname => $value) {
 			$verb = new Verb($verbname);
-			$imgopts = array();
+			$imgopts = array('class' => $opts['class']);
 			foreach ($opts as $pos => $values) {
 				if (isset($values[$verbname])) {
 					$imgopts += array($pos => $values[$verbname]);
 				}
 			}
-			$retval .= /* "<span class='$opts[classes]'>" . */ $verb->img($imgopts)/*  . "</span>" */;
+			$retval .= $verb->img($imgopts);
 		}
 		return $retval;
 	}

@@ -12,7 +12,7 @@ define('JQUERY_MIN', TRUE);   // minimize jQuery source
 define('JQueryVersion', '1.10.2');
 define('JQueryUIversion', '1.10.2');   // UI 1.10.3 has draggable bug   http://bugs.jqueryui.com/ticket/9315   http://jqueryui.com/changelog/1.10.3/
 
-$DOMAIN = "qiki.info";
+define('DOMAIN', "qiki.info");
 $FORMSUBMITURL = $_SERVER['PHP_SELF'];
 $ALLOW_SIGNUP = FALSE;
 $QI_COLOR = "#0050D0"; // Qi background blue
@@ -60,7 +60,6 @@ if (!UserQiki::client()->may(UserQikiAccess::see)) {
 }
 
 function htmlhead($title, $opts = array()) {   // TODO: move JavaScript and CSS loading to htmlfoot()?  Allow $opts both places, but execute them all in htmlfoot()???
-	global $DOMAIN;
 	global $FORMSUBMITURL;
 	global $ALLOW_SIGNUP;
 	
@@ -68,6 +67,8 @@ function htmlhead($title, $opts = array()) {   // TODO: move JavaScript and CSS 
 		'head' => array(),				// extra lines in the <head> ... </head>, e.g. array("<meta something>\n")
 		'cssphp' => array(),			// for CSS that has PHP in it, e.g. array("/home/visibone/public_html/utils.css.php")
 		'js' => array(),				// extra JavaScript, e.g. array("//ajax.googleapis.com...")
+		
+		/* northeastcorner() options too */
 	);
 	QikiConnectLogin();   // need to call here so UserQiki::client() is available, in case htmlhead() is called above including qiki.php, taking advantage of forward-reference
 
@@ -77,6 +78,7 @@ function htmlhead($title, $opts = array()) {   // TODO: move JavaScript and CSS 
 		<head>
 			<title><?php echo $title; ?></title>
 			<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+			<meta charset="utf-8" />
 			<?php echo "\n";
 				echo headersJQuery();
 			?>
@@ -86,8 +88,8 @@ function htmlhead($title, $opts = array()) {   // TODO: move JavaScript and CSS 
 				User_ERROR_START = decodeURIComponent('<?php echo rawurlencode(User::ERROR_START); ?>');  // thwart detection of these strings in JS code
 				User_ERROR_END   = decodeURIComponent('<?php echo rawurlencode(User::ERROR_END  ); ?>');
 			</script>
-			<script src="//<?php echo $DOMAIN; ?>/qiki.js" type="text/javascript"></script>
-			<link  href="//<?php echo $DOMAIN; ?>/qiki.css" rel="stylesheet" type="text/css" />
+			<script src="//<?php echo DOMAIN; ?>/qiki.js" type="text/javascript"></script>
+			<link  href="//<?php echo DOMAIN; ?>/qiki.css" rel="stylesheet" type="text/css" />
 			<?php echo "\n";
 				User::js(); 
 				foreach ($opts['cssphp'] as $cssphp) {
@@ -108,8 +110,8 @@ function htmlhead($title, $opts = array()) {   // TODO: move JavaScript and CSS 
 					echo "\t\t\t<script src='$js' type='text/javascript'></script>\n";
 				}
 			?>
-			<link href="//<?php echo $DOMAIN; ?>/favicon.ico" rel="icon"          type="image/x-icon" />
-			<link href="//<?php echo $DOMAIN; ?>/favicon.ico" rel="shortcut icon" type="image/x-icon" />
+			<link href="//<?php echo DOMAIN; ?>/favicon.ico" rel="icon"          type="image/x-icon" />
+			<link href="//<?php echo DOMAIN; ?>/favicon.ico" rel="shortcut icon" type="image/x-icon" />
 		</head>
 		<body>
 	<?php echo "\n";

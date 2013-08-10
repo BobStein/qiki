@@ -8,6 +8,7 @@ class Preference {
 	static $tableGrid = array(
 		1 => 'anonymous',
 		2 => 'spam',
+		3 => 'qoolopen',
 	);
 	static $defaultFromUser = array(
 		'anonymous' => FALSE,

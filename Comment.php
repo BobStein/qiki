@@ -4,7 +4,7 @@
 
 require_once('SteinPDO.php');
 require_once('User.php');  // to get the name of who made a comment
-require_once('qikilink.php');
+// require_once('qikilink.php');
 require_once('Verb.php');
 require_once('Scorer.php');
 require_once('QikiQuestion.php');
@@ -14,6 +14,7 @@ class Comment extends SteinTable {   // Represents not just a noun (class/info p
 	// static protected $table = __CLASS__;
 	// static protected /* SteinPDO */ $pdo;
 	protected $row;
+	protected $qikiQuestion;
 	public function id() {
 		return $this->row['sentence_id'];
 	}
@@ -38,11 +39,12 @@ class Comment extends SteinTable {   // Represents not just a noun (class/info p
 		
 		switch ($this->row['object_class']) {
 		case NounClass::QikiQuestion:
-			$qq = new QikiQuestion($this->row['object_id']);
-			$this->row['kontext'] = $qq->question();
+			$this->qikiQuestion = new QikiQuestion($this->row['object_id']);
+			$this->row['kontext'] = $this->qikiQuestion->question();
 			break;
 			// TODO: support comments on other objects
 		default:
+			$this->qikiQuestion = NULL;
 			$this->row['kontext'] = "(unknown context for {$this->row['object_class']})";
 			break;
 		}
@@ -66,7 +68,7 @@ class Comment extends SteinTable {   // Represents not just a noun (class/info p
 	// }
 	static public function insert($verbname, $qomment, $qontributor, $kontext) {   // TODO:  Comment.qontributor -> Sentence.subject_id?
 		// No -- $question = preg_replace('#^/#', '', $kontext, 1);   // kontext starts with a slash, question doesn't, or do we call that a qontext.  This war will end at some other place and time.
-		$qq = QikiQuestion::BoldFactory($kontext);
+		$qq = QikiQuestion::factoryBold($kontext);
 		$verb = new Verb($verbname);
 		if (alldigits($qontributor)) {   // TODO:  UserQiki::MurkyFactory($idorIP) makes a Noun object, User or IP, depending on content
 			$subject = new Noun(NounClass::User, $qontributor);
@@ -133,14 +135,13 @@ class Comment extends SteinTable {   // Represents not just a noun (class/info p
 			die("Comment::fetchem(minlevel => $opts[minlevel])");
 		}
 		if ($opts['kontext'] != '') {
-			$qq = QikiQuestion::TimidFactory($opts['kontext']);
-			$is_absent_from_QikiQuestion_table = $qq === FALSE;
-			if ($is_absent_from_QikiQuestion_table) {
-				$wheres[] = "FALSE";  // can't be any comments here, if the QikiQuestion was never recorded
-			} else {
+			$qq = new QikiQuestion($opts['kontext']);
+			if ($qq->is()) {
 				$wheres[] = "s.object_class = '".NounClass::QikiQuestion."'";
 				$wheres[] = "s.object_id = ?";
 				$vars[] = $qq->id();
+			} else {
+				$wheres[] = "FALSE";  // can't be any comments here, if the QikiQuestion was never recorded
 			}
 		}
 		
@@ -185,10 +186,18 @@ class Comment extends SteinTable {   // Represents not just a noun (class/info p
 		return $ids;
 	}
 	public function htmlQomment() {
-		return qikilinkifyText(nl2br(htmlspecialchars(trim($this->row['qomment']))));
+		if (is_null($this->qikiQuestion)) {
+			return $this->qomment();
+		} else {
+			return QikiQuestion::translateMarkdown(nl2br(htmlspecialchars(trim($this->qomment()))));
+		}
 	}
 	public function htmlKontext() {
-		return qikilinkWhole($this->row['kontext']);
+		if (is_null($this->qikiQuestion)) {
+			return '?';
+		} else {
+			return $this->qikiQuestion->link();
+		}
 	}
 	public function whotype() {
 		return strtolower($this->row['subject_class']);

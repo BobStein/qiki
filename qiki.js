@@ -1,5 +1,14 @@
 // Qiki JavaScript
 
+
+window.CHROMESTUFF =   // What the Qoolopener can close
+	 "#sectionComment,"
+	+".commentform,"
+	+".contextform,"
+	+"#verb-summary,"
+	+".footer-logo,"
+	+".necorner";
+
 $(function() {
 	$(".commentform").submit(function() {
 		$.ajax({
@@ -142,7 +151,7 @@ $(function() {
 	
 	
 	
-	function verb_state(verb, objclass, objid, value, op) {   // insert/set/delta a sentence where the user (id or IP address) is the implied subject
+	function verb_state(verb, objclass, objid, value, op, whendone) {   // insert/set/delta a sentence where the user (id or IP address) is the implied subject
 		$.post(FORMSUBMITURL, {
 			'action': 'verb_state',
 			'verbname': verb,
@@ -152,7 +161,11 @@ $(function() {
 			'op': op,
 		}, function(responseText, textStatus, jqXHR) {
 			if ($.trim(responseText) === 'success') {
-				window.location.reload();   // TODO: instead update object model, for pure AJAX without refresh
+				if (whendone == null) {
+					window.location.reload();   // TODO: instead update object model, for pure AJAX without refresh
+				} else {
+					whendone();
+				}
 			} else {
 				alert('Unable to "' + verb + '-' + op + '" a ' + objclass + ': ' + responseText);
 			}
@@ -183,7 +196,7 @@ $(function() {
 	
 	// Qoolbar
 	
-	 $.ui && $(".qoolbar .verb-qiki")	
+	 $.ui && $(".qoolbar .qool")	
 		.draggable({   // qoolbar - to - noun:  ADD RATING
 			helper: "clone", 
 			cursor: "-moz-grabbing",   // -moz-grabbing works FF 12-22, maybe used to work Chrome 28   
@@ -202,7 +215,7 @@ $(function() {
 	$(".qoolbar").addClass('fadeUntilHover');
 	$.ui && $(".noun-object")
 		.droppable({
-			accept: ".qoolbar .verb-qiki",
+			accept: ".qoolbar .qool",
 			hoverClass: 'drop-hover',
 			drop: function(event, ui) {
 				$source = ui.draggable;
@@ -326,7 +339,7 @@ $(function() {
 		selectionWrappup();
 	});
 	associationResolved();
-	$('.qoolbar .verb-qiki').click(function() {
+	$('.qoolbar .qool').click(function() {
 		if ($(this).closest('.qoolbar').is('.raiseVerbs')) {
 			verb = $(this).data('verb');
 			oclasses = [];
@@ -340,8 +353,22 @@ $(function() {
 			// Mean something else?  Elaborate on tool?
 		}
 	});
+	
+	// tool hider
+	window.qoolopen = true;   // TODO: retrieve from PHP via htmlhead() inline javascript
+	$('.qoolbar .verb-tool').click(function() {
+		$sectionComment = $('#sectionComment');
+		oldqo = window.qoolopen;
+		window.qoolopen = !window.qoolopen ;
+		newqo = window.qoolopen;
+		if (newqo) {
+			$(window.CHROMESTUFF).show(333);
+		} else {
+			$(window.CHROMESTUFF).hide(333);
+		}
+		verb_state('prefer', 'Preference', 3 /* Preference::factory('qoolopen')->id() */, newqo ? 1 : 0, 'set', function(){});
+	});
 });
-
 
 function associationResolved() {   // indicating normalcy
 	$(document.body).css('background-color', '#F8F8F8');   // TODO: make a class instead

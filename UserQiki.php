@@ -103,7 +103,11 @@ class UserQiki extends User {
 	static public function mayer($mayer) {
 		self::$mayers[] = $mayer;
 	}
-	public function may(/* UserQikiAccess:: */ $access, /* NounClass:: */ $object = NULL, $context = NULL) {
+	public function may(
+		/* UserQikiAccess:: */ $access, 
+		/* NounClass:: */ $object = NULL, 
+		$context = NULL
+	) {
 		foreach (self::$mayers as $id => $mayer) {
 			$mayoid = $mayer($this, $access, $object, $context);
 			switch (TRUE) {   // type-strict switch, thanks to Greg W: http://stackoverflow.com/a/3525666/673991
@@ -179,7 +183,13 @@ UserQiki::mayer(function($user, $access, $object, $context) {   // TODO: this co
 			}
 			die("Unknown user-may See Comment context: " . var_export($context, TRUE));
 		case ($object === NounClass::QikiQuestion):
-			return $user->isAnon() ? FALSE : TRUE;
+			if ($context == 'sleepingtool') {
+				return $user->isAnon() ? FALSE : TRUE;
+			} elseif ($context == 'answer') {
+				return $user->isAnon() ? TRUE : TRUE;
+			} else {
+				die("Unknown See-QikiQuestion context: $context");
+			}
 		default:
 			die("Unknown user-may See object: " . var_export($object, TRUE));
 		}

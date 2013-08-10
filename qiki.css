@@ -148,11 +148,39 @@ table.commentlist tr td {
 table.commentlist tr td+td {
 }
 
+
+
+/* Qiki Links */
+
 a.qikilink:link {
 	text-decoration: none;
-	border-width: 1px;
+	border-width: 0px 0px 1px 0px;
 	border-style: dotted;
 	padding: 0px 2px 0px 2px;
+}
+
+a.yesqiki,
+a.yesqiki:link,
+a.yesqiki:visited,
+a.yesqiki:active,
+a.yesqiki:hover {
+	color: blue;
+}
+
+a.maybeqiki,
+a.maybeqiki:link,
+a.maybeqiki:visited,
+a.maybeqiki:active,
+a.maybeqiki:hover {
+	color: magenta;
+}
+
+a.noqiki,
+a.noqiki:link,
+a.noqiki:visited,
+a.noqiki:active,
+a.noqiki:hover {
+	color: red;
 }
 
 
@@ -241,14 +269,13 @@ a.qikilink:link {
 	    -moz-border-radius-bottomleft: 8px;
 	        border-bottom-left-radius: 8px;
 }
+.qoolbar .verb-qiki,
 .qoolbar p {
-	text-align: right;
-	margin: 0px;
-}
-.qoolbar .verb-qiki {
 	display: block;
 	float: right;
 	clear: both;
+	width: 16px;
+	text-align: center;
 }
 
 .noun-object {
@@ -258,9 +285,9 @@ a.qikilink:link {
 .noun-object.drop-hover {
 	background-color: white;
 }
-.qoolbar.raiseVerbs .verb-qiki img {
+.qoolbar.raiseVerbs .qool img {
 }
-.qoolbar.raiseVerbs .verb-qiki:hover img {
+.qoolbar.raiseVerbs .qool:hover img {
 	border: 2px outset silver;
 	background-color: white;
 	padding: 1px;
@@ -334,4 +361,14 @@ a.qikilink:link {
 	   -moz-user-select: text;
 	    -ms-user-select: text;
 	        user-select: text;
+}
+
+
+
+/* QikiML */
+
+.funq + .contextform,
+.funq + .commentform,
+.funq + .nocomments {
+	margin-top: 13px;
 }
