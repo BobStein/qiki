@@ -311,6 +311,9 @@ $(function() {
 	
 	// Selection
 	
+    $('.selectable-noun a').click(function(event) {   // first of all, hyperlinks inside the selectable do NOT cause a selection event
+        event.stopPropagation();   // (notice how we're not prevent[ing the ]Default behaviour of hyperlinks)
+    });
 	$('.selectable-noun').click(function(event) {
 		event.shiftKey;
 		event.ctrlKey;

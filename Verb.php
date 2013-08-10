@@ -54,6 +54,8 @@ Comment about Comment?  (value = root comment??)
 */
 
 class Sentence extends SteinTable implements NounClass {
+	static public $table = __CLASS__;  // accessible to Verb or Sentence or Scorer or Preference
+
     protected /* LeanNoun */ $subject;
     public $verb;
     protected /* LeanNoun*/ $object;
@@ -64,9 +66,7 @@ class Sentence extends SteinTable implements NounClass {
         $object->assertValid();
     }
     
-	static public $table = __CLASS__;  // accessible to Verb or Sentence or Scorer or Preference
 	protected $row;
-	public $verb;
 	public function __construct($id) {
 		// WTF was this?   $this->
 		// clearly these grommets were never instantiated

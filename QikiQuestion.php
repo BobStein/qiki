@@ -89,20 +89,27 @@ class QikiQuestion extends SteinTable
 	{
 		return $this->id() !== self::NO_ID;
 	}
-	public function numObjected()   // number of sentences that use it in object -- TODO: move this counting to the constructor?
+	public function numObjected($verb = NULL)   // number of sentences that use it in object -- TODO: move this counting to the constructor?
 	{
 		if (!$this->is()) {
 			return 0;
 		}
+        $WHEREclause = "WHERE q.qiki_id = ?";
+        $vars = array(NounClass::QikiQuestion, $this->id());
+        if (!is_null($verb)) {
+            assssert($verb instanceof Verb);
+            $WHEREclause .= " AND so.verb_id = ?";
+            $vars[] = $verb->id();
+        }
 		return self::$pdo->cell("
 			SELECT COUNT(so.sentence_id) 
 			FROM ".self::$table." AS q
 			LEFT JOIN ".Sentence::$table." AS so
 				ON so.object_class = ?
 				AND so.object_id = q.qiki_id
-			WHERE q.qiki_id = ?
+			$WHEREclause
 			GROUP BY q.qiki_id
-		", array(NounClass::QikiQuestion, $this->id()));
+		", $vars);
 	}
 	public function numSubjected()   // number of sentences that use it in subject
 	{
@@ -122,6 +129,10 @@ class QikiQuestion extends SteinTable
 	public function numSentenced()   // number of sentences that use it in subject or object
 	{
 		return $this->numSubjected() + $this->numObjected();
+	}
+	public function isAnswered()   // TRUE means a sentence uses it in an object with the verb = answer
+	{
+        return $this->numObjected(new Verb('answer'));
 	}
 	public function isSentenced()   // TRUE means a sentence uses it in object or subject
 	{
@@ -179,12 +190,14 @@ class QikiQuestion extends SteinTable
 		}
 		$target = $opts['popup'] ? "target='_blank'" : '';
 		$htmlTitle = htmlspecialchars($opts['title']);
-		if ($this->isSentenced()) {
-			$isclass = 'yesqiki';
+		if ($this->isAnswered()) {   // green means has answers
+			$isclass = 'ansqiki';
+		} elseif ($this->isSentenced()) {   // blue means there are comments but no answers
+			$isclass = 'comqiki';
 		} elseif ($this->is()) {
-			$isclass = 'maybeqiki';
+			$isclass = 'zomqiki';   // pink means there's a QikiQuestion for it but no sentences.  Orphan question?  Purge?
 		} else {
-			$isclass = 'noqiki';
+			$isclass = 'nonqiki';   // red means unheard of
 		}
 		return "<a href='{$this->url()}' class='qikilink $isclass $opts[class]' $target title='$htmlTitle'>$visiblePart</a>";
 	}

@@ -159,27 +159,35 @@ a.qikilink:link {
 	padding: 0px 2px 0px 2px;
 }
 
-a.yesqiki,
-a.yesqiki:link,
-a.yesqiki:visited,
-a.yesqiki:active,
-a.yesqiki:hover {
-	color: blue;
+a.ansqiki,
+a.ansqiki:link,
+a.ansqiki:visited,
+a.ansqiki:active,
+a.ansqiki:hover {
+	color: rgb(0,102,0);
 }
 
-a.maybeqiki,
-a.maybeqiki:link,
-a.maybeqiki:visited,
-a.maybeqiki:active,
-a.maybeqiki:hover {
+a.comqiki,
+a.comqiki:link,
+a.comqiki:visited,
+a.comqiki:active,
+a.comqiki:hover {
+	color: rgb(0,0,204);
+}
+
+a.zomqiki,
+a.zomqiki:link,
+a.zomqiki:visited,
+a.zomqiki:active,
+a.zomqiki:hover {
 	color: magenta;
 }
 
-a.noqiki,
-a.noqiki:link,
-a.noqiki:visited,
-a.noqiki:active,
-a.noqiki:hover {
+a.nonqiki,
+a.nonqiki:link,
+a.nonqiki:visited,
+a.nonqiki:active,
+a.nonqiki:hover {
 	color: red;
 }
 
