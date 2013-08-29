@@ -16,7 +16,7 @@ $(function() {
 			url: $(this).attr('action'),
 			data: $(this).serialize(),
 			success: function(responseText) {
-				if (jQuery.trim(responseText) == 'success') {
+				if ($.trim(responseText) == 'success') {
 					// TODO prepend the new comment
 					window.location.reload(true);
 				} else {
@@ -44,25 +44,36 @@ $(function() {
 			type: $form.attr('method'),
 			url: $form.attr('action'),
 			data: $form.serialize(),
+            dataType: 'html',
 			success: function(responseText) {
+                if (kind == 'Login'  && $.trim(responseText) == 'loggedin'
+                 || kind == 'Signup' && $.trim(responseText) == 'signedup') {
+                    if (success_handler != null) {
+                        success_handler();
+                    } else {
+                        window.location.reload(true);
+                    }
+                } else {
+                    // alert(kind + " form reports: '" + responseText + "'");
+                    var estart = responseText.indexOf(User_ERROR_START);
+                    var eend   = responseText.indexOf(User_ERROR_END);
+                    if (estart == -1 || eend == -1) {   // TODO: a more positive confirmation, than absence of error message
+                        alert("Missing error message: '" + responseText + "'");
+                        window.location.reload(true);   // to get back to the page you were on
+                    } else {
+                        var message = responseText.substring(estart + User_ERROR_START.length, eend);
+                        alert(kind + " error: " + message); 
+                    }
+                }
 				// TODO: not be so wasteful with big returned (nonsense http://qiki.info/qiki404.php) page that's trashed here? 
 				// TODO: review all the special cases of logging in
 				//       in modes anonymous allowed and not
 				//       in pop up form or whole-page
 				//       N.B. all these alternatives make User.php rickety.  Unit tests?  More like Wholeshebang tests?
 
-				// if (/class\=\'User-error\'/.test(responseText)) {  // DONE: more robust detection
-				var estart = responseText.indexOf(User_ERROR_START);
-				var eend   = responseText.indexOf(User_ERROR_END);
-				if (estart == -1 || eend == -1) {   // TODO: a more positive confirmation, than absence of error message
-					if (success_handler != null) {
-						success_handler();
-					}
-					window.location.reload(true);   // to get back to the page you were on
-				} else {
-					var message = responseText.substring(estart + User_ERROR_START.length, eend);
-					alert(kind + " error: " + message); 
-				}
+                                // if (/class\=\'User-error\'/.test(responseText)) {  // DONE: more robust detection
+
+
 			},
 			error: function(xhr, errorType, errorThrown) {
 				alert(kind + " failed " + errorType + ", " + errorThrown + ":\n\n" + xhr.responseText);
@@ -71,10 +82,16 @@ $(function() {
 	}
 	$("#logoutlink").click(function() {
 		$.ajax({
-			type: 'head',   // so as not to be so wasteful with big returned page that must be trashed here (does that still run the PHP twice?)
+			type: 'GET',   // so as not to be so wasteful with big returned page that must be trashed here (does that still run the PHP twice?)  But has no affect, duh, PHP doesn't distinguish GET from HEAD.  Oh but it could...
 			url: $(this).attr('href'),
+            dataType: 'html',
 			success: function(responseText) {
-				window.location.reload(true);
+                if ($.trim(responseText) == 'loggedout') {
+                    window.location.reload(true);
+                } else {
+                    alert("Loggout resulted in '" + responseText + "'");
+                }
+				// window.location.reload(true);
 			},
 			error: function(xhr, errorType, errorThrown) {
 				alert("Logout error " + errorType + ", " + errorThrown + ":\n\n" + xhr.responseText);
@@ -302,11 +319,11 @@ $(function() {
 	
 	$('#showanon').change(function() {
 		var setting = $(this).is(':checked') ? '1' : '0';
-		verb_state('prefer', 'Preference', 1 /* new Preference('anon').id() */, setting, 'set');
+		verb_state('prefer', 'Preference', 1 /* new Preference('anonymous').id() */, setting, 'stow');
 	});
 	$('#showspam').change(function() {
 		var setting = $(this).is(':checked') ? '1' : '0';
-		verb_state('prefer', 'Preference', 2 /* new Preference('spam').id() */, setting, 'set');
+		verb_state('prefer', 'Preference', 2 /* new Preference('spam').id() */, setting, 'stow');
 	});
 	
 	// Selection
@@ -369,7 +386,7 @@ $(function() {
 		} else {
 			$(window.CHROMESTUFF).hide(333);
 		}
-		verb_state('prefer', 'Preference', 3 /* Preference::factory('qoolopen')->id() */, newqo ? 1 : 0, 'set', function(){});
+		verb_state('prefer', 'Preference', 3 /* Preference::factory('qoolopen')->id() */, newqo ? 1 : 0, 'stow', function(){ /* avoid reload */ });
 	});
 });
 

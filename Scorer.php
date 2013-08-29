@@ -16,15 +16,15 @@ class Scorer {
 	}
 	public function score($opts=array()) {
 		$opts += array(
-			/* NounClass::Verb     => $verb_id,    */   //
-			/* NounClass::User     => $user_id,    */   // pick one of these to specify the object, or none of these to sum over all objects
-			/* NounClass::Sentence => $comment_id, */   //
+			/*     Verb::classname() => $verb_id,    */   //
+			/* UserQiki::classname() => $user_id,    */   // pick one of these to specify the object, or none of these to sum over all objects
+			/* Sentence::classname() => $comment_id, */   //
 			'client_id' => NULL,   // e.g. UserQiki::client()->id()
 		);
 		switch ($this->name) {
 		
 		case 'spammy':	
-			$verb = new Verb('spam');
+			$verb = Verb::selectInfo('spam');
 			
 			// TODO: MergeMorphMeld with Verb::associations() or something
 			$wheretests = array();
@@ -40,14 +40,14 @@ class Scorer {
 			$wheretests[] = "s.verb_id = ?";
 			$queryparameters[] = $verb->id();
 			$wheretests[] = "s.subject_class = ?";
-			$queryparameters[] = NounClass::User;   // Ignores ratings from anonymous users -- but still shows the icon!  
+			$queryparameters[] = UserQiki::classname();   // Ignores ratings from anonymous users -- but still shows the icon!  
 			$WHEREclause = empty($wheretests) ? '' : "WHERE " . join(' AND ', $wheretests);
 			$pdo = Verb::pdo();
 			$uservotes = $pdo->column("
 				SELECT
 					s.subject_id,
 					s.value
-				FROM ".Sentence::$table." AS s
+				FROM ".Sentence::tablename()." AS s
 				$WHEREclause
 			", $queryparameters);
 			

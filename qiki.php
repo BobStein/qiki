@@ -6,6 +6,7 @@
 // Generic includable for qiki site.
 
 
+require_once('Noun.php'); 
 
 define('DEBUG', TRUE);   // display PHP errors, jquery.js; FALSE for jquery.min.js
 define('JQUERY_MIN', TRUE);   // minimize jQuery source
@@ -82,10 +83,10 @@ function htmlhead($title, $opts = array()) {   // TODO: move JavaScript and CSS 
 			<?php echo "\n";
 				echo headersJQuery();
 			?>
-			<!-- script src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script -->
+			<!-- script src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script  - it was jarring and annoying  -->
 			<script type="text/javascript">
-				FORMSUBMITURL = '<?php echo addslashes($FORMSUBMITURL); ?>';
-				User_ERROR_START = decodeURIComponent('<?php echo rawurlencode(User::ERROR_START); ?>');  // thwart detection of these strings in JS code
+				FORMSUBMITURL = '<?php echo addslashes($FORMSUBMITURL); ?>';   // TODO:  Move all this to qiki.js.php or something
+				User_ERROR_START = decodeURIComponent('<?php echo rawurlencode(User::ERROR_START); ?>');  // thwart detection of these strings in inline JS code
 				User_ERROR_END   = decodeURIComponent('<?php echo rawurlencode(User::ERROR_END  ); ?>');
 			</script>
 			<script src="//<?php echo DOMAIN; ?>/qiki.js" type="text/javascript"></script>
@@ -104,9 +105,9 @@ function htmlhead($title, $opts = array()) {   // TODO: move JavaScript and CSS 
 					echo "\t\t\t</style>\n";
 				}
 				echo join("\n", $opts['head']);   // must come after cssphp, to override
-				if (!is_array($opts['js'])) die("htmlhead() Option 'js' must be an array, not a " . gettype($opts['js']) . ".");
+				assertTrue(is_array($opts['js']), "htmlhead() Option 'js' must be an array, not a " . gettype($opts['js']) . ".");
 				foreach ($opts['js'] as $js) {
-					if (!is_string($js)) die("htmlhead() Invalid option in 'js' array, should be a string, not a " . gettype($js) . ".");
+					assertTrue(is_string($js), "htmlhead() Invalid option in 'js' array, should be a string, not a " . gettype($js) . ".");
 					echo "\t\t\t<script src='$js' type='text/javascript'></script>\n";
 				}
 			?>
@@ -171,7 +172,7 @@ function northeastcorner($opts = array()) {
 			<?php echo "\n";
 				echo $opts['htmlNortheast'];
 				// echo gettype(UserQiki::client());
-				if (UserQiki::client()->alreadyLoggedIn()) {
+				if (UserQiki::client()->is()) {
 					echo "<span id='loglink'>";
 					echo "(<a id='logoutlink' href='" . UserQiki::client()->logouturl() . "'>logout</a> as " . UserQiki::client()->name() . ")";
 					echo "</span>\n";
@@ -265,14 +266,43 @@ function qikilogo() {
 		."</a>";
 }
 
-function assssert($test, $message = NULL) {
+
+// TODO: Export to assertQiki.php?  Part of unit testing?
+// Allow 2nd parameter function, that is only called if the assert failure, 
+// except it MAY be called when the assert passes for EVERY test to verify they all work!
+// TODO: Extract and show the line of source code?
+// link to a web page that displays the code with syntax highlighting, and highlights the assert line
+// version-dependent!  It could extract from the git repository ASSUMING there was a fetch, 
+// maybe the time and date of the most recent fetch should be known by the source code
+// i.e. the revision hash or whatever git calls it
+
+function assertFailure($message = NULL)
+{
 	if (!isset($message)) {
 		$message = 'ASSERT FAILURE';
 	}
-	if (!$test) {
-		echo "\nThe upside-down stack:\n";
-		debug_print_backtrace();
-		echo "\n";
-		die($message);
-	}
+    echo "\nThe upside-down stack:\n";
+    echo "<pre>\n";
+        debug_print_backtrace();
+        echo "\n";
+    echo "</pre>\n";
+    die($message);
+}
+function assertTrue($test, $message = NULL) 
+{
+    if ($test === TRUE) {
+        return;
+    } elseif ($test === FALSE) {
+        assertFailure($message);
+    } else {
+        assertFailure(
+            "Warning: assertion is neither boolean TRUE nor FALSE: " 
+            . "''" . var_export($test, TRUE) . "''\n"
+            . "The message was: ''$message''"
+        );
+    }
+}
+function assertIsa($o, $classname) 
+{
+    assertTrue(is_a($o, $classname));
 }

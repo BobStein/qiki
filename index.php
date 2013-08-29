@@ -1,8 +1,9 @@
- <?php
+<?php
 error_reporting(E_ALL);
 ini_set("display_errors", 1);
 
 require_once('qiki.php'); 
+require_once('Noun.php'); 
 require_once('Comment.php'); 
 
 htmlhead('qiki');
@@ -32,8 +33,8 @@ stein at visibone dot com
 
 <?php
 
-if (UserQiki::client()->may(UserQikiAccess::see, NounClass::Comment, 'user')) {
-	if (UserQiki::client()->may(UserQikiAccess::see, NounClass::Comment, 'anon')) {
+if (UserQiki::client()->may(UserQikiAccess::see, Comment::classname(), 'user')) {
+	if (UserQiki::client()->may(UserQikiAccess::see, Comment::classname(), 'anon')) {
 		$minlevel = 'anon';
 	} else {
 		$minlevel = 'user';
@@ -50,9 +51,9 @@ if (UserQiki::client()->may(UserQikiAccess::see, NounClass::Comment, 'user')) {
 	foreach ($comments as $comment) {
 		echo "<tr>\n";
 		echo "<td>\n";
-		echo $comment->htmlKontext();
+		echo $comment->htmlLink();   // was $comment->htmlKontext();
 		echo "<td>\n";
-		echo $comment->htmlQomment();
+		echo $comment->htmlContent();   // was htmlspecialchars($comment->clause(Comment::classname())->info());   // was $comment->htmlQomment();
 		echo "&nbsp; ";
 		echo "<span class='sayswho'>";
 			echo "(by ";
